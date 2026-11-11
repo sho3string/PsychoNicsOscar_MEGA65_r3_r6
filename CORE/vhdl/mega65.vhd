@@ -224,11 +224,13 @@ architecture synthesis of MEGA65_Core is
 -- Clocks and active high reset signals for each clock domain
 ---------------------------------------------------------------------------------------------
 
-signal main_clk               : std_logic;               -- Core main clock
-signal main_rst               : std_logic;
+signal main_clk             : std_logic;               -- Core main clock
+signal main_rst             : std_logic;
 
 -- QNICE write strobe for the Oscar character ROM. Actual BRAM is in main.vhd.
-signal oscar_rom_qnice_we    : std_logic;
+signal oscar_rom_qnice_we   : std_logic;
+signal dip_sw1_menu         : std_logic_vector(7 downto 0);
+signal dip_sw2_menu         : std_logic_vector(7 downto 0);
 
 ---------------------------------------------------------------------------------------------
 -- main_clk (MiSTer core's clock)
@@ -361,6 +363,24 @@ begin
    main_power_led_o     <= '1';
    main_power_led_col_o <= x"0000FF" when main_reset_m2m_i else x"00FF00";
 
+   -- Oscar DIP banks. Each OSD bit represents one physical switch position.
+   dip_sw1_menu(0) <= main_osm_control_i(C_MENU_SW1_0);
+   dip_sw1_menu(1) <= main_osm_control_i(C_MENU_SW1_1);
+   dip_sw1_menu(2) <= main_osm_control_i(C_MENU_SW1_2);
+   dip_sw1_menu(3) <= main_osm_control_i(C_MENU_SW1_3);
+   dip_sw1_menu(4) <= main_osm_control_i(C_MENU_SW1_4);
+   dip_sw1_menu(5) <= main_osm_control_i(C_MENU_SW1_5);
+   dip_sw1_menu(6) <= main_osm_control_i(C_MENU_SW1_6);
+   dip_sw1_menu(7) <= main_osm_control_i(C_MENU_SW1_7);
+   dip_sw2_menu(0) <= main_osm_control_i(C_MENU_SW2_0);
+   dip_sw2_menu(1) <= main_osm_control_i(C_MENU_SW2_1);
+   dip_sw2_menu(2) <= main_osm_control_i(C_MENU_SW2_2);
+   dip_sw2_menu(3) <= main_osm_control_i(C_MENU_SW2_3);
+   dip_sw2_menu(4) <= main_osm_control_i(C_MENU_SW2_4);
+   dip_sw2_menu(5) <= main_osm_control_i(C_MENU_SW2_5);
+   dip_sw2_menu(6) <= main_osm_control_i(C_MENU_SW2_6);
+   dip_sw2_menu(7) <= main_osm_control_i(C_MENU_SW2_7);
+
    -- main.vhd contains the actual MiSTer core
    i_main : entity work.main
       generic map (
@@ -373,6 +393,9 @@ begin
          pause_i              => main_pause_core_i,
 
          clk_main_speed_i     => CORE_CLK_SPEED,
+
+         dip_sw1_i            => dip_sw1_menu,
+         dip_sw2_i            => dip_sw2_menu,
 
          -- Pass the selected QNICE ROM download device into main.vhd.
          -- All character ROM BRAM and plane assembly live there.
@@ -540,3 +563,4 @@ begin
 
    
 end architecture synthesis;
+

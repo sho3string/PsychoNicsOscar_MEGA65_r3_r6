@@ -5,6 +5,8 @@ module jtoscar_main (
     input  wire        clk,
     input  wire        rst,
     input  wire        LVBL,
+    input  wire [7:0]  dip_sw1,
+    input  wire [7:0]  dip_sw2,
 
     // CPU buses to external ROM/RAM in main.vhd.
     output wire [15:0] cpu_addr,
@@ -45,6 +47,16 @@ module jtoscar_main (
     input  wire [7:0]  bank_rom_q,
     input  wire [7:0]  sub_rom_q
 );
+
+    wire [7:0] dsw0;
+    wire [7:0] dsw1;
+
+    jtoscar_dip u_dip (
+        .sw1  ( dip_sw1 ),
+        .sw2  ( dip_sw2 ),
+        .dsw0 ( dsw0    ),
+        .dsw1 ( dsw1    )
+    );
 
     wire [7:0] cpu_din;
     wire [7:0] sub_din;
@@ -223,9 +235,9 @@ module jtoscar_main (
                 case (cpu_addr)
                     // Oscar IN2: VBLANK is active high on bit 7.
                     16'h3c02: main_data = LVBL ? 8'h7f : 8'hff;
-                    // Original World / upright DIP defaults.
-                    16'h3c03: main_data = 8'h7f;
-                    16'h3c04: main_data = 8'hff;
+                    // DIP SW1/SW2, active low, as read on original hardware.
+                    16'h3c03: main_data = dsw0;
+                    16'h3c04: main_data = dsw1;
                     default:  main_data = 8'hff;
                 endcase
             end

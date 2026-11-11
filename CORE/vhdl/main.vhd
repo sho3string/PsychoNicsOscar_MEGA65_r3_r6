@@ -27,6 +27,10 @@ entity main is
 
       clk_main_speed_i        : in  natural;
 
+      -- Oscar DIP banks: selected OSD item = physical switch ON.
+      dip_sw1_i               : in  std_logic_vector(7 downto 0);
+      dip_sw2_i               : in  std_logic_vector(7 downto 0);
+
       -- QNICE ROM download bus: ed08, du10, ed09, du11 (each its own device).
       dn_clk_i                : in  std_logic;
       dn_addr_i               : in  std_logic_vector(15 downto 0);
@@ -226,6 +230,8 @@ architecture synthesis of main is
       port (
          clk                   : in  std_logic;
          rst                   : in  std_logic;
+         dip_sw1               : in  std_logic_vector(7 downto 0);
+         dip_sw2               : in  std_logic_vector(7 downto 0);
          pxl_cen               : out std_logic;
          HS                    : out std_logic;
          VS                    : out std_logic;
@@ -764,6 +770,8 @@ begin
       port map (
          clk                  => clk_main_i,
          rst                  => reset_hard_i or reset_soft_i,
+         dip_sw1              => dip_sw1_i,
+         dip_sw2              => dip_sw2_i,
          pxl_cen              => pixel_ce,
          HS                   => hs,
          VS                   => vs,

@@ -3,6 +3,8 @@
 module jtoscar_game (
     input  wire        clk,
     input  wire        rst,
+    input  wire [7:0]  dip_sw1,
+    input  wire [7:0]  dip_sw2,
     output wire        pxl_cen,
     output wire        HS,
     output wire        VS,
@@ -92,6 +94,8 @@ module jtoscar_game (
         .clk             ( clk             ),
         .rst             ( rst             ),
         .LVBL            ( LVBL            ),
+        .dip_sw1         ( dip_sw1         ),
+        .dip_sw2         ( dip_sw2         ),
         .cpu_addr        ( cpu_addr        ),
         .sub_addr        ( sub_addr        ),
         .cpu_dout        ( cpu_dout        ),

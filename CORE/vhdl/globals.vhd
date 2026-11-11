@@ -16,6 +16,57 @@ use work.video_modes_pkg.all;
 
 package globals is
 
+--- menu items
+-- HDMI
+constant C_MENU_CRT_EMULATION : natural := 4;
+constant C_MENU_HDMI_16_9_50  : natural := 8;
+constant C_MENU_HDMI_16_9_60  : natural := 9;
+constant C_MENU_HDMI_4_3_50   : natural := 10;
+constant C_MENU_HDMI_5_4_50   : natural := 11;
+constant C_MENU_HDMI_640_60   : natural := 12;
+constant C_MENU_HDMI_720_5994 : natural := 13;
+constant C_MENU_SVGA_800_60   : natural := 14;
+
+-- VGA
+constant C_MENU_VGA_STD       : natural := 20;
+constant C_MENU_VGA_15KHZHSVS : natural := 24;
+constant C_MENU_VGA_15KHZCS   : natural := 25;
+
+-- Audio
+constant C_MENU_IMPROVE_AUDIO : natural := 31;
+
+-- Oscar controls
+constant C_MENU_MODE_0       : natural  := 38; -- 3-button
+constant C_MENU_MODE_1       : natural  := 39; -- Keyboard (P1 only)
+constant C_MENU_P1LAY_0      : natural  := 43;
+constant C_MENU_P1LAY_1      : natural  := 44;
+constant C_MENU_P1LAY_2      : natural  := 45;
+constant C_MENU_P1LAY_3      : natural  := 46;
+constant C_MENU_P1LAY_4      : natural  := 47;
+constant C_MENU_P1LAY_5      : natural  := 48;
+constant C_MENU_POTPOL_0     : natural  := 52; -- High active
+constant C_MENU_POTPOL_1     : natural  := 53; -- Low active
+
+-- Oscar DIP SW1
+constant C_MENU_SW1_0         : natural := 59;
+constant C_MENU_SW1_1         : natural := 60;
+constant C_MENU_SW1_2         : natural := 61;
+constant C_MENU_SW1_3         : natural := 62;
+constant C_MENU_SW1_4         : natural := 63;
+constant C_MENU_SW1_5         : natural := 64;
+constant C_MENU_SW1_6         : natural := 65;
+constant C_MENU_SW1_7         : natural := 66;
+
+-- Oscar DIP SW2
+constant C_MENU_SW2_0         : natural := 72;
+constant C_MENU_SW2_1         : natural := 73;
+constant C_MENU_SW2_2         : natural := 74;
+constant C_MENU_SW2_3         : natural := 75;
+constant C_MENU_SW2_4         : natural := 76;
+constant C_MENU_SW2_5         : natural := 77;
+constant C_MENU_SW2_6         : natural := 78;
+constant C_MENU_SW2_7         : natural := 79;
+
 ----------------------------------------------------------------------------------------------------------
 -- QNICE Firmware
 ----------------------------------------------------------------------------------------------------------
