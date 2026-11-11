@@ -3,8 +3,8 @@
 // 48 MHz FPGA clock, 6 MHz pixel enable.
 // Original jtframe_vtimer timings preserved from jtoscar_video(3).v.
 //
-// Temporary display: jtframe_tilemap shows tile codes 0..959 in a
-// 32x30 grid (not yet driven by the game's 2 KiB character RAM).
+// Temporary display: jtframe_tilemap reads a 2 KiB snapshot of Oscar's
+// character RAM, captured during MAME's startup RAM-test screen.
 // ROM data is 3 x 8-bit planes in {bit2,bit1,bit0} order; the external
 // ROM adapter supplies it from the original ed08 image.
 //
@@ -26,9 +26,13 @@ module jtoscar_video (
     input  wire [23:0] char_data,  // {plane2, plane1, plane0}
     input  wire        char_ok,
 
-    output reg  [3:0]  red,
-    output reg  [3:0]  green,
-    output reg  [3:0]  blue
+    // Character tilemap RAM from main.vhd (16-bit words, 1-cycle read)
+    output wire [9:0]  cram_addr,
+    input  wire [15:0] cram_data,
+
+    output wire [3:0]  red,
+    output wire [3:0]  green,
+    output wire [3:0]  blue
 );
 
     // ------------------------------------------------------------
@@ -81,15 +85,15 @@ module jtoscar_video (
     );
 
     // ------------------------------------------------------------
-    // Diagnostic character map (32 x 30 visible tiles).
-    //
-    // Existing timer has HINIT=128 and visible V=8..247;
-    // normalise those coordinates for the diagnostic grid only.
-    // Both offsets are provisional until checked on real hardware.
+    // Character map: 32x32 entries, 8x8 pixels each.
+    // Oscar's character RAM contains [attribute, code] byte pairs.
+    // Keep the existing video timing and diagnostic H/V offsets.
     // ------------------------------------------------------------
     wire [8:0] vchar = vdump - 9'd8;
     wire [9:0] char_vram_addr;
     wire [5:0] char_pxl;
+
+    assign cram_addr = char_vram_addr;
 
     jtframe_tilemap #(
         .SIZE         ( 8   ),
@@ -99,39 +103,36 @@ module jtoscar_video (
         .BPP          ( 3   ),
         .MAP_HW       ( 8   ),
         .MAP_VW       ( 8   ),
-        .HDUMP_OFFSET ( 128 )
+        .HDUMP_OFFSET ( 0 )
     ) u_char (
-        .rst         ( rst            ),
-        .clk         ( clk            ),
-        .pxl_cen     ( pxl_cen        ),
-        .vdump       ( vchar          ),
-        .hdump       ( hdump          ),
-        .blankn      ( LVBL           ),
-        .flip        ( 1'b0           ),
-        .vram_addr   ( char_vram_addr ),
-        .code        ( char_vram_addr ),
-        .pal         ( 3'b000         ),
-        .hflip       ( 1'b0           ),
-        .vflip       ( 1'b0           ),
-        .rom_cs      ( char_cs        ),
-        .rom_addr    ( char_addr      ),
-        .rom_data    ( char_data      ),
-        .rom_ok      ( char_ok        ),
-        .pxl         ( char_pxl       )
+        .rst         ( rst                              ),
+        .clk         ( clk                              ),
+        .pxl_cen     ( pxl_cen                          ),
+        .vdump       ( vchar                            ),
+        .hdump       ( hdump                            ),
+        .blankn      ( LVBL                             ),
+        .flip        ( 1'b0                             ),
+        .vram_addr   ( char_vram_addr                   ),
+        .code        ( {cram_data[9:8], cram_data[7:0]} ),
+        .pal         ( {1'b0, cram_data[15:14]}         ),
+        .hflip       ( 1'b0                             ),
+        .vflip       ( 1'b0                             ),
+        .rom_cs      ( char_cs                          ),
+        .rom_addr    ( char_addr                        ),
+        .rom_data    ( char_data                        ),
+        .rom_ok      ( char_ok                          ),
+        .pxl         ( char_pxl                         )
     );
 
-    // Temporary RGB display. No Oscar palette/priority logic yet.
-    // Bit-plane diagnostics: bit2=red, bit1=green, bit0=blue.
-    // The pixel stream is already clocked by jtframe_tilemap.
-    always @* begin
-        red   = 4'h0;
-        green = 4'h0;
-        blue  = 4'h0;
-
-        if (LHBL && LVBL) begin
-            red   = {4{char_pxl[2]}};
-            green = {4{char_pxl[1]}};
-            blue  = {4{char_pxl[0]}};
-        end
-    end
+    // Monochrome RAM-test colour mixer. Oscar's hardware palette and
+    // layer priority logic are not implemented yet. In this snapshot,
+    // every attribute byte is $00, and all text is white on black.
+    jtoscar_colmix u_colmix (
+        .LHBL     ( LHBL     ),
+        .LVBL     ( LVBL     ),
+        .char_pxl ( char_pxl ),
+        .red      ( red      ),
+        .green    ( green    ),
+        .blue     ( blue     )
+    );
 endmodule

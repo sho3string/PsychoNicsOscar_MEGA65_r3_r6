@@ -102,6 +102,76 @@ architecture synthesis of main is
    signal char_bank_q         : t_char_banks;
    signal char_bank_we        : std_logic_vector(3 downto 0);
 
+   -- 2 KiB Oscar character RAM snapshot from MAME, $2000-$27FF.
+   -- Each tile is [attribute byte, code byte]. This is a READ-ONLY
+   -- checkpoint fixture; replace it with JTFRAME dual-port RAM when
+   -- the 6809 CPU is connected.
+   signal cram_addr         : std_logic_vector(9 downto 0);
+   signal cram_data         : std_logic_vector(15 downto 0);
+   type t_ramtest_words is array (0 to 1023) of std_logic_vector(15 downto 0);
+   constant C_RAMTEST_WORDS : t_ramtest_words := (
+         66 => x"400A",  -- $2084
+         67 => x"400B",
+         68 => x"8010",
+         69 => x"8010",
+         75 => x"400E",
+         76 => x"400F",
+         84 => x"4014",
+         85 => x"4015",
+         86 => x"0031",
+         87 => x"0037",
+         88 => x"0038",
+        104 => x"0030",
+        109 => x"0036",
+        110 => x"0038",
+        111 => x"0030",
+        112 => x"0039",
+        113 => x"0030",
+        116 => x"4016",
+        117 => x"4017",
+        118 => x"8018",
+        119 => x"8018",
+        120 => x"8018",
+        121 => x"4019",
+        122 => x"4019",
+    
+        -- Bottom weapon-selection bar
+        897 => x"C01E",  -- $2702
+        898 => x"C01C",
+        899 => x"0030",
+        900 => x"0030",
+        901 => x"4100",
+        902 => x"4101",
+        903 => x"4102",
+        904 => x"4103",
+        905 => x"4104",
+        906 => x"410C",
+        907 => x"410D",
+        908 => x"410E",
+        909 => x"410F",
+        910 => x"4110",
+        911 => x"4118",
+        912 => x"4119",
+        913 => x"411A",
+        914 => x"411B",
+        915 => x"411C",
+        916 => x"4124",
+        917 => x"4125",
+        918 => x"4126",
+        919 => x"4127",
+        920 => x"4128",
+        921 => x"4130",
+        922 => x"4131",
+        923 => x"4132",
+        924 => x"4133",
+        925 => x"4134",
+        929 => x"C01F",  -- $2742
+        930 => x"C01D",
+    
+        others => x"0000"
+    );
+
+
    -- Same 8-bit dual-port primitive/interface used in Double Dragon.
    component dualport_2clk_ram is
       generic (
@@ -151,6 +221,8 @@ architecture synthesis of main is
          char_rom_cs          : out std_logic;
          char_rom_data        : in  std_logic_vector(23 downto 0);
          char_rom_ok          : in  std_logic;
+         cram_addr            : out std_logic_vector(9 downto 0);
+         cram_data            : in  std_logic_vector(15 downto 0);
          obj_rom_addr         : out std_logic_vector(19 downto 0);
          obj_rom_data         : in  std_logic_vector(7 downto 0);
          scr_rom_addr         : out std_logic_vector(19 downto 0);
@@ -220,6 +292,18 @@ begin
       char_bank_q(2) & char_bank_q(3) & x"00";
 
    ----------------------------------------------------------------------------------
+   -- Temporary character RAM contents captured from Oscar's MAME RAM test.
+   -- The video-side tilemap uses a one-cycle synchronous memory read,
+   -- matching the JTFRAME dual-port CRAM read timing used by Double Dragon.
+   ----------------------------------------------------------------------------------
+   process(clk_main_i)
+   begin
+      if rising_edge(clk_main_i) then
+         cram_data <= C_RAMTEST_WORDS(to_integer(unsigned(cram_addr)));
+      end if;
+   end process;
+
+   ----------------------------------------------------------------------------------
    -- Psycho-Nics Oscar game core
    ----------------------------------------------------------------------------------
 
@@ -255,6 +339,8 @@ begin
          char_rom_cs          => char_cs,
          char_rom_data        => char_data,
          char_rom_ok          => '1',
+         cram_addr            => cram_addr,
+         cram_data            => cram_data,
          obj_rom_addr         => open,
          obj_rom_data         => (others => '0'),
          scr_rom_addr         => open,

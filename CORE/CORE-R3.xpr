@@ -101,6 +101,13 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
+      <File Path="$PPRDIR/jotego/oscar/jtoscar_colmix.v">
+        <FileInfo>
+          <Attr Name="UsedIn" Val="synthesis"/>
+          <Attr Name="UsedIn" Val="implementation"/>
+          <Attr Name="UsedIn" Val="simulation"/>
+        </FileInfo>
+      </File>
       <File Path="$PPRDIR/jotego/oscar/jtoscar_game.v">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>

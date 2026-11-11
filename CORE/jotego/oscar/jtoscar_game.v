@@ -32,6 +32,9 @@ module jtoscar_game (
     output wire        char_rom_cs,
     input  wire [23:0] char_rom_data,
     input  wire        char_rom_ok,
+    // 1024x16-bit character RAM (temporary MAME snapshot in main.vhd)
+    output wire [9:0]  cram_addr,
+    input  wire [15:0] cram_data,
     output wire [19:0] obj_rom_addr,
     input  wire [7:0]  obj_rom_data,
     output wire [19:0] scr_rom_addr,
@@ -55,6 +58,8 @@ module jtoscar_game (
         .char_cs   ( char_rom_cs   ),
         .char_data ( char_rom_data ),
         .char_ok   ( char_rom_ok   ),
+        .cram_addr ( cram_addr ),
+        .cram_data ( cram_data ),
         .red       ( red     ),
         .green     ( green   ),
         .blue      ( blue    )
