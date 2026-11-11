@@ -27,6 +27,7 @@ module jtoscar_game (
     output wire        char_hi_we,
     output wire        char_lo_we,
     output wire        bg_we,
+    output wire        bac_reg_wr,
     output wire        sprite_we,
     output wire        palette_hi_we,
     output wire        palette_lo_we,
@@ -58,7 +59,15 @@ module jtoscar_game (
     output wire [12:0] char_rom_addr,
     output wire        char_rom_cs,
     input  wire [23:0] char_rom_data,
-    input  wire        char_rom_ok
+    input  wire        char_rom_ok,
+
+    // Jotego BAC06 reads tilemap RAM and graphics ROM from main.vhd.
+    output wire        bg_ram_cs,
+    output wire [12:0] bg_ram_addr,
+    input  wire [15:0] bg_ram_data,
+    output wire        bg_rom_cs,
+    output wire [16:0] bg_rom_addr,
+    input  wire [31:0] bg_rom_data
 );
 
     jtoscar_main u_main (
@@ -78,6 +87,7 @@ module jtoscar_game (
         .char_hi_we      ( char_hi_we      ),
         .char_lo_we      ( char_lo_we      ),
         .bg_we           ( bg_we           ),
+        .bac_reg_wr      ( bac_reg_wr      ),
         .sprite_we       ( sprite_we       ),
         .palette_hi_we   ( palette_hi_we   ),
         .palette_lo_we   ( palette_lo_we   ),
@@ -110,6 +120,15 @@ module jtoscar_game (
         .char_cs      ( char_rom_cs   ),
         .char_data    ( char_rom_data ),
         .char_ok      ( char_rom_ok   ),
+        .bac_cpu_addr ( cpu_addr      ),
+        .bac_cpu_dout ( cpu_dout      ),
+        .bac_cpu_wr   ( bac_reg_wr    ),
+        .bg_ram_cs    ( bg_ram_cs     ),
+        .bg_ram_addr  ( bg_ram_addr   ),
+        .bg_ram_data  ( bg_ram_data   ),
+        .bg_rom_cs    ( bg_rom_cs     ),
+        .bg_rom_addr  ( bg_rom_addr   ),
+        .bg_rom_data  ( bg_rom_data   ),
         .cram_addr    ( cram_addr    ),
         .cram_data    ( cram_data    ),
         .palette_addr ( palette_addr ),

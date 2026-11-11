@@ -25,6 +25,17 @@ module jtoscar_video (
     input  wire [23:0] char_data,  // {plane2, plane1, plane0}
     input  wire        char_ok,
 
+    // Main 6809 BAC06 control writes and external tilemap/ROM memory.
+    input  wire [15:0] bac_cpu_addr,
+    input  wire [7:0]  bac_cpu_dout,
+    input  wire        bac_cpu_wr,
+    output wire        bg_ram_cs,
+    output wire [12:0] bg_ram_addr,
+    input  wire [15:0] bg_ram_data,
+    output wire        bg_rom_cs,
+    output wire [16:0] bg_rom_addr,
+    input  wire [31:0] bg_rom_data,
+
     // Character tilemap RAM from main.vhd (16-bit words, 1-cycle read)
     output wire [9:0]  cram_addr,
     input  wire [15:0] cram_data,
@@ -45,6 +56,8 @@ module jtoscar_video (
     reg pixel_ce_reg;
 
     assign pxl_cen = pixel_ce_reg;
+    // Every fourth 48MHz clock. This overlaps every 6MHz pixel enable.
+    wire pxl2_cen = div8[1:0] == 2'd0;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -61,6 +74,7 @@ module jtoscar_video (
     // ------------------------------------------------------------
     wire [8:0] hdump;
     wire [8:0] vdump;
+    wire [8:0] vrender;
 
     jtframe_vtimer #(
         .VB_START ( 9'd248 ),
@@ -76,7 +90,7 @@ module jtoscar_video (
         .clk      ( clk     ),
         .pxl_cen  ( pxl_cen ),
         .vdump    ( vdump   ),
-        .vrender  (         ),
+        .vrender  ( vrender ),
         .vrender1 (         ),
         .H        ( hdump   ),
         .Hinit    (         ),
@@ -127,12 +141,42 @@ module jtoscar_video (
         .pxl         ( char_pxl       )
     );
 
-    // Foreground colour mixer. Background/sprite layer priority comes later.
+    // The original video timer drives BAC06 in slave mode; no second timer.
+    wire [7:0] bg_pxl;
+
+    jtoscar_bac06 u_bac06 (
+        .clk       ( clk          ),
+        .rst       ( rst          ),
+        .pxl_cen   ( pxl_cen      ),
+        .pxl2_cen  ( pxl2_cen     ),
+        .cpu_addr  ( bac_cpu_addr ),
+        .cpu_dout  ( bac_cpu_dout ),
+        .cpu_wr    ( bac_cpu_wr   ),
+        .hdump     ( hdump        ),
+        .vdump     ( vdump        ),
+        .vrender   ( vrender      ),
+        .LHBL      ( LHBL         ),
+        .LVBL      ( LVBL         ),
+        .HS        ( HS           ),
+        .VS        ( VS           ),
+        .ram_cs    ( bg_ram_cs    ),
+        .ram_addr  ( bg_ram_addr  ),
+        .ram_data  ( bg_ram_data  ),
+        .ram_ok    ( 1'b1         ),
+        .rom_cs    ( bg_rom_cs    ),
+        .rom_addr  ( bg_rom_addr  ),
+        .rom_data  ( bg_rom_data  ),
+        .rom_ok    ( 1'b1         ),
+        .bg_pxl    ( bg_pxl       )
+    );
+
+    // Foreground characters over the BAC06 background.
     jtoscar_colmix u_colmix (
         .clk          ( clk          ),
         .LHBL         ( LHBL         ),
         .LVBL         ( LVBL         ),
         .char_pxl     ( char_pxl     ),
+        .bg_pxl       ( bg_pxl       ),
         .palette_addr ( palette_addr ),
         .palette_data ( palette_data ),
         .red          ( red          ),

@@ -92,6 +92,10 @@ constant C_DEV_OSCAR_CHAR_ROM   : std_logic_vector(15 downto 0) := x"0102";
 constant C_DEV_OSCAR_MAIN_ROM   : std_logic_vector(15 downto 0) := x"0103";
 constant C_DEV_OSCAR_BANK_ROM   : std_logic_vector(15 downto 0) := x"0104";
 constant C_DEV_OSCAR_SUB_ROM    : std_logic_vector(15 downto 0) := x"0105";
+constant C_DEV_OSCAR_BG0_ROM    : std_logic_vector(15 downto 0) := x"0106"; -- ed01
+constant C_DEV_OSCAR_BG1_ROM    : std_logic_vector(15 downto 0) := x"0107"; -- ed03
+constant C_DEV_OSCAR_BG2_ROM    : std_logic_vector(15 downto 0) := x"0108"; -- ed00
+constant C_DEV_OSCAR_BG3_ROM    : std_logic_vector(15 downto 0) := x"0109"; -- ed02
 
 -- Virtual drive management system (handled by vdrives.vhd and the firmware)
 -- If you are not using virtual drives, make sure that:
@@ -164,24 +168,65 @@ constant C_OSCAR_CHAR_ROM_NAME : string := "/arcade/oscar/ed08" & ENDSTR;
 constant C_OSCAR_MAIN_ROM_NAME : string := "/arcade/oscar/du10" & ENDSTR;
 constant C_OSCAR_BANK_ROM_NAME : string := "/arcade/oscar/ed09" & ENDSTR;
 constant C_OSCAR_SUB_ROM_NAME  : string := "/arcade/oscar/du11" & ENDSTR;
+constant C_OSCAR_BG0_ROM_NAME  : string := "/arcade/oscar/ed01" & ENDSTR;
+constant C_OSCAR_BG1_ROM_NAME  : string := "/arcade/oscar/ed03" & ENDSTR;
+constant C_OSCAR_BG2_ROM_NAME  : string := "/arcade/oscar/ed00" & ENDSTR;
+constant C_OSCAR_BG3_ROM_NAME  : string := "/arcade/oscar/ed02" & ENDSTR;
 
-constant C_CRTROMS_AUTO_NUM   : natural := 4;
+constant C_CRTROMS_AUTO_NUM   : natural := 8;
 constant C_CRTROMS_AUTO_NAMES : string  := C_OSCAR_CHAR_ROM_NAME &
                                            C_OSCAR_MAIN_ROM_NAME &
                                            C_OSCAR_BANK_ROM_NAME &
-                                           C_OSCAR_SUB_ROM_NAME;
+                                           C_OSCAR_SUB_ROM_NAME  &
+                                           C_OSCAR_BG0_ROM_NAME  &
+                                           C_OSCAR_BG1_ROM_NAME  &
+                                           C_OSCAR_BG2_ROM_NAME  &
+                                           C_OSCAR_BG3_ROM_NAME;
 constant C_CRTROMS_AUTO : crtrom_buf_array := (
    C_CRTROMTYPE_DEVICE, C_DEV_OSCAR_CHAR_ROM,
    C_CRTROMTYPE_MANDATORY, x"0000",
+
    C_CRTROMTYPE_DEVICE, C_DEV_OSCAR_MAIN_ROM,
    C_CRTROMTYPE_MANDATORY, std_logic_vector(to_unsigned(C_OSCAR_CHAR_ROM_NAME'length, 16)),
+
    C_CRTROMTYPE_DEVICE, C_DEV_OSCAR_BANK_ROM,
    C_CRTROMTYPE_MANDATORY, std_logic_vector(to_unsigned(C_OSCAR_CHAR_ROM_NAME'length +
                                                        C_OSCAR_MAIN_ROM_NAME'length, 16)),
+
    C_CRTROMTYPE_DEVICE, C_DEV_OSCAR_SUB_ROM,
    C_CRTROMTYPE_MANDATORY, std_logic_vector(to_unsigned(C_OSCAR_CHAR_ROM_NAME'length +
                                                        C_OSCAR_MAIN_ROM_NAME'length +
                                                        C_OSCAR_BANK_ROM_NAME'length, 16)),
+
+   C_CRTROMTYPE_DEVICE, C_DEV_OSCAR_BG0_ROM,
+   C_CRTROMTYPE_MANDATORY, std_logic_vector(to_unsigned(C_OSCAR_CHAR_ROM_NAME'length +
+                                                       C_OSCAR_MAIN_ROM_NAME'length +
+                                                       C_OSCAR_BANK_ROM_NAME'length +
+                                                       C_OSCAR_SUB_ROM_NAME'length, 16)),
+
+   C_CRTROMTYPE_DEVICE, C_DEV_OSCAR_BG1_ROM,
+   C_CRTROMTYPE_MANDATORY, std_logic_vector(to_unsigned(C_OSCAR_CHAR_ROM_NAME'length +
+                                                       C_OSCAR_MAIN_ROM_NAME'length +
+                                                       C_OSCAR_BANK_ROM_NAME'length +
+                                                       C_OSCAR_SUB_ROM_NAME'length +
+                                                       C_OSCAR_BG0_ROM_NAME'length, 16)),
+
+   C_CRTROMTYPE_DEVICE, C_DEV_OSCAR_BG2_ROM,
+   C_CRTROMTYPE_MANDATORY, std_logic_vector(to_unsigned(C_OSCAR_CHAR_ROM_NAME'length +
+                                                       C_OSCAR_MAIN_ROM_NAME'length +
+                                                       C_OSCAR_BANK_ROM_NAME'length +
+                                                       C_OSCAR_SUB_ROM_NAME'length +
+                                                       C_OSCAR_BG0_ROM_NAME'length +
+                                                       C_OSCAR_BG1_ROM_NAME'length, 16)),
+
+   C_CRTROMTYPE_DEVICE, C_DEV_OSCAR_BG3_ROM,
+   C_CRTROMTYPE_MANDATORY, std_logic_vector(to_unsigned(C_OSCAR_CHAR_ROM_NAME'length +
+                                                       C_OSCAR_MAIN_ROM_NAME'length +
+                                                       C_OSCAR_BANK_ROM_NAME'length +
+                                                       C_OSCAR_SUB_ROM_NAME'length +
+                                                       C_OSCAR_BG0_ROM_NAME'length +
+                                                       C_OSCAR_BG1_ROM_NAME'length +
+                                                       C_OSCAR_BG2_ROM_NAME'length, 16)),
    x"EEEE");
 
 ----------------------------------------------------------------------------------------------------------
@@ -204,4 +249,3 @@ constant audio_att      : std_logic_vector( 4 downto 0) := "00000";
 constant audio_mix      : std_logic_vector( 1 downto 0) := "00"; -- 0 - no mix, 1 - 25%, 2 - 50%, 3 - 100% (mono)
 
 end package globals;
-

@@ -21,6 +21,7 @@ module jtoscar_main (
     output wire        char_hi_we,
     output wire        char_lo_we,
     output wire        bg_we,
+    output wire        bac_reg_wr,
     output wire        sprite_we,
     output wire        palette_hi_we,
     output wire        palette_lo_we,
@@ -185,6 +186,10 @@ module jtoscar_main (
     assign char_hi_we      = cpu_wr && char_cs && !cpu_addr[0];
     assign char_lo_we      = cpu_wr && char_cs &&  cpu_addr[0];
     assign bg_we           = cpu_wr && bg_cs;
+    assign bac_reg_wr      = cpu_wr && (
+                             (cpu_addr >= 16'h3c00 && cpu_addr <= 16'h3c07) ||
+                             (cpu_addr >= 16'h3c10 && cpu_addr <= 16'h3c1f)
+                         );
     assign sprite_we       = cpu_wr && sprite_cs;
     assign palette_hi_we   = cpu_wr && palette_cs && !cpu_addr[0];
     assign palette_lo_we   = cpu_wr && palette_cs &&  cpu_addr[0];

@@ -127,12 +127,31 @@ architecture synthesis of main is
    signal cram_main_hi         : std_logic_vector(7 downto 0);
    signal cram_main_lo         : std_logic_vector(7 downto 0);
    signal bg_q                 : std_logic_vector(7 downto 0);
+   signal bg_hi_q              : std_logic_vector(7 downto 0);
+   signal bg_lo_q              : std_logic_vector(7 downto 0);
+   signal bg_hi_video_q        : std_logic_vector(7 downto 0);
+   signal bg_lo_video_q        : std_logic_vector(7 downto 0);
+   signal bg_hi_we             : std_logic;
+   signal bg_lo_we             : std_logic;
+   signal bg_ram_cs            : std_logic;
+   signal bg_ram_map_d         : std_logic := '0';
+   signal bg_ram_addr          : std_logic_vector(12 downto 0);
+   signal bg_ram_data          : std_logic_vector(15 downto 0);
+   signal bg_rom_cs            : std_logic;
+   signal bg_rom_addr          : std_logic_vector(16 downto 0);
+   signal bg_rom_word_addr     : std_logic_vector(15 downto 0);
+   signal bg_rom_upper_d       : std_logic := '0';
+   signal bg_rom_data          : std_logic_vector(31 downto 0);
+   signal bg_rom_we            : std_logic_vector(3 downto 0);
+   type t_bg_planes is array (0 to 3) of std_logic_vector(7 downto 0);
+   signal bg_rom_q             : t_bg_planes;
    signal sprite_q             : std_logic_vector(7 downto 0);
    signal palette_hi_q         : std_logic_vector(7 downto 0);
    signal palette_lo_q         : std_logic_vector(7 downto 0);
    signal palette_addr         : std_logic_vector(8 downto 0);
    signal palette_data         : std_logic_vector(15 downto 0);
    signal bg_we                : std_logic;
+   signal bac_reg_wr           : std_logic;
    signal sprite_we            : std_logic;
    signal palette_hi_we        : std_logic;
    signal palette_lo_we        : std_logic;
@@ -210,6 +229,7 @@ architecture synthesis of main is
          char_hi_we            : out std_logic;
          char_lo_we            : out std_logic;
          bg_we                 : out std_logic;
+         bac_reg_wr            : out std_logic;
          sprite_we             : out std_logic;
          palette_hi_we         : out std_logic;
          palette_lo_we         : out std_logic;
@@ -233,7 +253,13 @@ architecture synthesis of main is
          char_rom_addr         : out std_logic_vector(12 downto 0);
          char_rom_cs           : out std_logic;
          char_rom_data         : in  std_logic_vector(23 downto 0);
-         char_rom_ok           : in  std_logic
+         char_rom_ok           : in  std_logic;
+         bg_ram_cs             : out std_logic;
+         bg_ram_addr           : out std_logic_vector(12 downto 0);
+         bg_ram_data           : in  std_logic_vector(15 downto 0);
+         bg_rom_cs             : out std_logic;
+         bg_rom_addr           : out std_logic_vector(16 downto 0);
+         bg_rom_data           : in  std_logic_vector(31 downto 0)
       );
    end component;
 
@@ -245,6 +271,11 @@ begin
    main_rom_we <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_MAIN_ROM and dn_addr_i(15) = '0' else '0';
    bank_rom_we <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_BANK_ROM else '0';
    sub_rom_we  <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_SUB_ROM else '0';
+
+   bg_rom_we(0) <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_BG0_ROM else '0';
+   bg_rom_we(1) <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_BG1_ROM else '0';
+   bg_rom_we(2) <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_BG2_ROM else '0';
+   bg_rom_we(3) <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_BG3_ROM else '0';
 
    ----------------------------------------------------------------------------------
    -- Keyboard
@@ -298,9 +329,9 @@ begin
    end process;
 
    -- MAME oscar_charlayout, using the original ed08 byte offsets:
-   -- code 0..511:   plane2 = 0x1000, plane1 = 0x2000, plane0 = 0x3000
-   -- code 512..1023: plane2 = 0x2000, plane1 = 0x3000, plane0 = 0x4000
-   -- The last plane is outside the loaded 16 KiB ROM and reads as zero.
+   -- MAME oscar_charlayout, plane significance as validated on hardware:
+   -- code 0..511:    plane2 = 0x3000, plane1 = 0x2000, plane0 = 0x1000
+   -- code 512..1023: plane2 = missing, plane1 = 0x3000, plane0 = 0x2000
    char_data <= char_bank_q(3) & char_bank_q(2) & char_bank_q(1)
       when char_half_d = '0' else
       x"00" & char_bank_q(3) & char_bank_q(2);
@@ -455,26 +486,104 @@ begin
          q1                   => cram_data(7 downto 0)
       );
 
-   -- Background and sprite RAM are CPU-visible but not rendered yet.
-   -- Palette RAM below has a separate synchronous video read port.
-   i_bg_ram : jtframe_dual_ram
+   -- BAC06 tilemap RAM at $2800-$2FFF: 1024 big-endian 16-bit words.
+   -- Retain CPU byte reads/writes and add independent video reads.
+   bg_hi_we <= bg_we when cpu_addr(0) = '0' else '0';
+   bg_lo_we <= bg_we when cpu_addr(0) = '1' else '0';
+   bg_q     <= bg_hi_q when cpu_addr(0) = '0' else bg_lo_q;
+
+   i_bg_ram_hi : jtframe_dual_ram
       generic map (
-         AW                   => 11,
+         AW                   => 10,
          DW                   => 8
       )
       port map (
          clk0                 => clk_main_i,
          data0                => cpu_dout,
-         addr0                => cpu_addr(10 downto 0),
-         we0                  => bg_we,
-         q0                   => bg_q,
+         addr0                => cpu_addr(10 downto 1),
+         we0                  => bg_hi_we,
+         q0                   => bg_hi_q,
 
          clk1                 => clk_main_i,
          data1                => (others => '0'),
-         addr1                => (others => '0'),
+         addr1                => bg_ram_addr(9 downto 0),
          we1                  => '0',
-         q1                   => open
+         q1                   => bg_hi_video_q
       );
+
+   i_bg_ram_lo : jtframe_dual_ram
+      generic map (
+         AW                   => 10,
+         DW                   => 8
+      )
+      port map (
+         clk0                 => clk_main_i,
+         data0                => cpu_dout,
+         addr0                => cpu_addr(10 downto 1),
+         we0                  => bg_lo_we,
+         q0                   => bg_lo_q,
+
+         clk1                 => clk_main_i,
+         data1                => (others => '0'),
+         addr1                => bg_ram_addr(9 downto 0),
+         we1                  => '0',
+         q1                   => bg_lo_video_q
+      );
+
+   -- The BAC06 selects the tilemap with its top RAM-address bit.
+   -- Oscar has no CPU-mapped row/column scroll RAM in MAME; return zero
+   -- for these requests until we implement the full scroll interface.
+   process(clk_main_i)
+   begin
+      if rising_edge(clk_main_i) then
+         bg_ram_map_d <= bg_ram_addr(12);
+      end if;
+   end process;
+
+   bg_ram_data <= bg_hi_video_q & bg_lo_video_q
+      when bg_ram_map_d = '1' else (others => '0');
+
+   -- Oscar's four original 64 KiB tile files are four bitplanes in the
+   -- sparse 512 KiB MAME graphics region, NOT a packed ROM file.
+   -- jtcop_bac06 ROM address is a 32-bit row fetch. In 16x16 mode,
+   -- byte address = {tile[10:0], half, row[3:0]}, where half=1 first.
+   -- MAME's tile x offsets select byte +16 for pixels 0..7 and
+   -- byte +0 for pixels 8..15 (each 16-pixel row is split into halves).
+   bg_rom_word_addr <= bg_rom_addr(15 downto 5) &
+                       bg_rom_addr(4) & bg_rom_addr(3 downto 0);
+
+   gen_oscar_bg_rom : for i in 0 to 3 generate
+   begin
+      i_bg_rom : dualport_2clk_ram
+         generic map (
+            FALLING_B            => true,
+            ADDR_WIDTH           => 16
+         )
+         port map (
+            clock_a              => clk_main_i,
+            address_a            => bg_rom_word_addr,
+            q_a                  => bg_rom_q(i),
+
+            clock_b              => dn_clk_i,
+            address_b            => dn_addr_i,
+            data_b               => dn_data_i,
+            wren_b               => bg_rom_we(i)
+         );
+   end generate gen_oscar_bg_rom;
+
+   process(clk_main_i)
+   begin
+      if rising_edge(clk_main_i) then
+         bg_rom_upper_d <= bg_rom_addr(16);
+      end if;
+   end process;
+
+   -- Jotego's draw_pxl() expects planes in this particular byte order.
+   -- ed01=bit0, ed03=bit1, ed00=bit2, ed02=bit3 in MAME's layout.
+   bg_rom_data <= bg_rom_q(2) & bg_rom_q(3) & bg_rom_q(0) & bg_rom_q(1)
+      when bg_rom_upper_d = '0' else (others => '0');
+
+   -- The sprite RAM remains CPU-visible but is not rendered yet.
 
    i_sprite_ram : jtframe_dual_ram
       generic map (
@@ -564,6 +673,7 @@ begin
          char_hi_we           => char_hi_we,
          char_lo_we           => char_lo_we,
          bg_we                => bg_we,
+         bac_reg_wr           => bac_reg_wr,
          sprite_we            => sprite_we,
          palette_hi_we        => palette_hi_we,
          palette_lo_we        => palette_lo_we,
@@ -587,7 +697,13 @@ begin
          char_rom_addr        => char_addr,
          char_rom_cs          => char_cs,
          char_rom_data        => char_data,
-         char_rom_ok          => '1'
+         char_rom_ok          => '1',
+         bg_ram_cs            => bg_ram_cs,
+         bg_ram_addr          => bg_ram_addr,
+         bg_ram_data          => bg_ram_data,
+         bg_rom_cs            => bg_rom_cs,
+         bg_rom_addr          => bg_rom_addr,
+         bg_rom_data          => bg_rom_data
       );
 
    ----------------------------------------------------------------------------------

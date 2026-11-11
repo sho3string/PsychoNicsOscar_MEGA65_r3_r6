@@ -500,7 +500,9 @@ begin
             qnice_dev_data_o     <= qnice_demo_vd_data_o;
 
          when C_DEV_OSCAR_CHAR_ROM | C_DEV_OSCAR_MAIN_ROM |
-              C_DEV_OSCAR_BANK_ROM | C_DEV_OSCAR_SUB_ROM =>
+              C_DEV_OSCAR_BANK_ROM | C_DEV_OSCAR_SUB_ROM |
+              C_DEV_OSCAR_BG0_ROM | C_DEV_OSCAR_BG1_ROM |
+              C_DEV_OSCAR_BG2_ROM | C_DEV_OSCAR_BG3_ROM =>
             -- Download-only devices. All ROMs and their write decoding are
             -- in main.vhd (the same architecture as the Double Dragon port).
             -- Each device starts at address zero, with its own file length.
@@ -535,4 +537,3 @@ begin
 
    
 end architecture synthesis;
-
