@@ -8,9 +8,9 @@ module jtoscar_game (
     output wire        VS,
     output wire        LHBL,
     output wire        LVBL,
-    output wire [3:0]  red,
-    output wire [3:0]  green,
-    output wire [3:0]  blue,
+    output wire [7:0]  red,
+    output wire [7:0]  green,
+    output wire [7:0]  blue,
 
     // CPU buses and banked ROM address.
     output wire [15:0] cpu_addr,
@@ -28,7 +28,8 @@ module jtoscar_game (
     output wire        char_lo_we,
     output wire        bg_we,
     output wire        sprite_we,
-    output wire        palette_we,
+    output wire        palette_hi_we,
+    output wire        palette_lo_we,
 
     // CPU-side ROM and RAM read data.
     input  wire [7:0]  shared_main_q,
@@ -39,7 +40,8 @@ module jtoscar_game (
     input  wire [7:0]  cram_main_lo,
     input  wire [7:0]  bg_q,
     input  wire [7:0]  sprite_q,
-    input  wire [7:0]  palette_q,
+    input  wire [7:0]  palette_hi_q,
+    input  wire [7:0]  palette_lo_q,
     input  wire [7:0]  main_rom_q,
     input  wire [7:0]  bank_rom_q,
     input  wire [7:0]  sub_rom_q,
@@ -47,6 +49,10 @@ module jtoscar_game (
     // Character RAM video read port.
     output wire [9:0]  cram_addr,
     input  wire [15:0] cram_data,
+
+    // 512-entry palette RAM, read on the 48 MHz video clock.
+    output wire [8:0]  palette_addr,
+    input  wire [15:0] palette_data,
 
     // Character graphics ROM video read port.
     output wire [12:0] char_rom_addr,
@@ -73,7 +79,8 @@ module jtoscar_game (
         .char_lo_we      ( char_lo_we      ),
         .bg_we           ( bg_we           ),
         .sprite_we       ( sprite_we       ),
-        .palette_we      ( palette_we      ),
+        .palette_hi_we   ( palette_hi_we   ),
+        .palette_lo_we   ( palette_lo_we   ),
 
         .shared_main_q   ( shared_main_q   ),
         .shared_sub_q    ( shared_sub_q    ),
@@ -83,30 +90,33 @@ module jtoscar_game (
         .cram_main_lo    ( cram_main_lo    ),
         .bg_q            ( bg_q            ),
         .sprite_q        ( sprite_q        ),
-        .palette_q       ( palette_q       ),
+        .palette_hi_q    ( palette_hi_q    ),
+        .palette_lo_q    ( palette_lo_q    ),
         .main_rom_q      ( main_rom_q      ),
         .bank_rom_q      ( bank_rom_q      ),
         .sub_rom_q       ( sub_rom_q       )
     );
 
-    // Previously verified character renderer. Colour remains diagnostic.
+    // Existing character renderer with live palette-RAM colour lookup.
     jtoscar_video u_video (
-        .clk       ( clk           ),
-        .rst       ( rst           ),
-        .pxl_cen   ( pxl_cen       ),
-        .HS        ( HS            ),
-        .VS        ( VS            ),
-        .LHBL      ( LHBL          ),
-        .LVBL      ( LVBL          ),
-        .char_addr ( char_rom_addr ),
-        .char_cs   ( char_rom_cs   ),
-        .char_data ( char_rom_data ),
-        .char_ok   ( char_rom_ok   ),
-        .cram_addr ( cram_addr     ),
-        .cram_data ( cram_data     ),
-        .red       ( red           ),
-        .green     ( green         ),
-        .blue      ( blue          )
+        .clk          ( clk          ),
+        .rst          ( rst          ),
+        .pxl_cen      ( pxl_cen      ),
+        .HS           ( HS           ),
+        .VS           ( VS           ),
+        .LHBL         ( LHBL         ),
+        .LVBL         ( LVBL         ),
+        .char_addr    ( char_rom_addr ),
+        .char_cs      ( char_rom_cs   ),
+        .char_data    ( char_rom_data ),
+        .char_ok      ( char_rom_ok   ),
+        .cram_addr    ( cram_addr    ),
+        .cram_data    ( cram_data    ),
+        .palette_addr ( palette_addr ),
+        .palette_data ( palette_data ),
+        .red          ( red          ),
+        .green        ( green        ),
+        .blue         ( blue         )
     );
 
 endmodule

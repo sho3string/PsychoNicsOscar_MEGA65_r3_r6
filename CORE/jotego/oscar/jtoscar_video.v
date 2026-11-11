@@ -29,9 +29,13 @@ module jtoscar_video (
     output wire [9:0]  cram_addr,
     input  wire [15:0] cram_data,
 
-    output wire [3:0]  red,
-    output wire [3:0]  green,
-    output wire [3:0]  blue
+    // CPU-programmed 512 x 16-bit DECO RM-C3 palette RAM.
+    output wire [8:0]  palette_addr,
+    input  wire [15:0] palette_data,
+
+    output wire [7:0]  red,
+    output wire [7:0]  green,
+    output wire [7:0]  blue
 );
 
     // ------------------------------------------------------------
@@ -123,14 +127,16 @@ module jtoscar_video (
         .pxl         ( char_pxl       )
     );
 
-    // Temporary monochrome colour mixer. Oscar's hardware palette and
-    // layer priority logic are not implemented yet. Character attributes are not yet converted to arcade RGB.
+    // Foreground colour mixer. Background/sprite layer priority comes later.
     jtoscar_colmix u_colmix (
-        .LHBL     ( LHBL     ),
-        .LVBL     ( LVBL     ),
-        .char_pxl ( char_pxl ),
-        .red      ( red      ),
-        .green    ( green    ),
-        .blue     ( blue     )
+        .clk          ( clk          ),
+        .LHBL         ( LHBL         ),
+        .LVBL         ( LVBL         ),
+        .char_pxl     ( char_pxl     ),
+        .palette_addr ( palette_addr ),
+        .palette_data ( palette_data ),
+        .red          ( red          ),
+        .green        ( green        ),
+        .blue         ( blue         )
     );
 endmodule

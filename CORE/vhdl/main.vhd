@@ -80,9 +80,9 @@ architecture synthesis of main is
 
    -- Oscar video
    signal pixel_ce            : std_logic;
-   signal rgb_r               : std_logic_vector(3 downto 0);
-   signal rgb_g               : std_logic_vector(3 downto 0);
-   signal rgb_b               : std_logic_vector(3 downto 0);
+   signal rgb_r               : std_logic_vector(7 downto 0);
+   signal rgb_g               : std_logic_vector(7 downto 0);
+   signal rgb_b               : std_logic_vector(7 downto 0);
    signal hs                  : std_logic;
    signal vs                  : std_logic;
    signal lhbl                : std_logic;
@@ -128,10 +128,14 @@ architecture synthesis of main is
    signal cram_main_lo         : std_logic_vector(7 downto 0);
    signal bg_q                 : std_logic_vector(7 downto 0);
    signal sprite_q             : std_logic_vector(7 downto 0);
-   signal palette_q            : std_logic_vector(7 downto 0);
+   signal palette_hi_q         : std_logic_vector(7 downto 0);
+   signal palette_lo_q         : std_logic_vector(7 downto 0);
+   signal palette_addr         : std_logic_vector(8 downto 0);
+   signal palette_data         : std_logic_vector(15 downto 0);
    signal bg_we                : std_logic;
    signal sprite_we            : std_logic;
-   signal palette_we           : std_logic;
+   signal palette_hi_we        : std_logic;
+   signal palette_lo_we        : std_logic;
    signal private_main_we      : std_logic;
    signal private_sub_we       : std_logic;
    signal shared_main_we       : std_logic;
@@ -191,9 +195,9 @@ architecture synthesis of main is
          VS                    : out std_logic;
          LHBL                  : out std_logic;
          LVBL                  : out std_logic;
-         red                   : out std_logic_vector(3 downto 0);
-         green                 : out std_logic_vector(3 downto 0);
-         blue                  : out std_logic_vector(3 downto 0);
+         red                   : out std_logic_vector(7 downto 0);
+         green                 : out std_logic_vector(7 downto 0);
+         blue                  : out std_logic_vector(7 downto 0);
          cpu_addr              : out std_logic_vector(15 downto 0);
          sub_addr              : out std_logic_vector(15 downto 0);
          cpu_dout              : out std_logic_vector(7 downto 0);
@@ -207,7 +211,8 @@ architecture synthesis of main is
          char_lo_we            : out std_logic;
          bg_we                 : out std_logic;
          sprite_we             : out std_logic;
-         palette_we            : out std_logic;
+         palette_hi_we         : out std_logic;
+         palette_lo_we         : out std_logic;
          shared_main_q         : in  std_logic_vector(7 downto 0);
          shared_sub_q          : in  std_logic_vector(7 downto 0);
          private_main_q        : in  std_logic_vector(7 downto 0);
@@ -216,12 +221,15 @@ architecture synthesis of main is
          cram_main_lo          : in  std_logic_vector(7 downto 0);
          bg_q                  : in  std_logic_vector(7 downto 0);
          sprite_q              : in  std_logic_vector(7 downto 0);
-         palette_q             : in  std_logic_vector(7 downto 0);
+         palette_hi_q          : in  std_logic_vector(7 downto 0);
+         palette_lo_q          : in  std_logic_vector(7 downto 0);
          main_rom_q            : in  std_logic_vector(7 downto 0);
          bank_rom_q            : in  std_logic_vector(7 downto 0);
          sub_rom_q             : in  std_logic_vector(7 downto 0);
          cram_addr             : out std_logic_vector(9 downto 0);
          cram_data             : in  std_logic_vector(15 downto 0);
+         palette_addr          : out std_logic_vector(8 downto 0);
+         palette_data          : in  std_logic_vector(15 downto 0);
          char_rom_addr         : out std_logic_vector(12 downto 0);
          char_rom_cs           : out std_logic;
          char_rom_data         : in  std_logic_vector(23 downto 0);
@@ -293,9 +301,9 @@ begin
    -- code 0..511:   plane2 = 0x1000, plane1 = 0x2000, plane0 = 0x3000
    -- code 512..1023: plane2 = 0x2000, plane1 = 0x3000, plane0 = 0x4000
    -- The last plane is outside the loaded 16 KiB ROM and reads as zero.
-   char_data <= char_bank_q(1) & char_bank_q(2) & char_bank_q(3)
+   char_data <= char_bank_q(3) & char_bank_q(2) & char_bank_q(1)
       when char_half_d = '0' else
-      char_bank_q(2) & char_bank_q(3) & x"00";
+      x"00" & char_bank_q(3) & char_bank_q(2);
 
    ----------------------------------------------------------------------------------
    -- Program ROMs: 6809E main fixed / banked / sub CPU
@@ -447,8 +455,8 @@ begin
          q1                   => cram_data(7 downto 0)
       );
 
-   -- Temporary CPU-visible RAM for background, sprites and palette.
-   -- Their video readers/colour outputs are intentionally not connected yet.
+   -- Background and sprite RAM are CPU-visible but not rendered yet.
+   -- Palette RAM below has a separate synchronous video read port.
    i_bg_ram : jtframe_dual_ram
       generic map (
          AW                   => 11,
@@ -487,23 +495,45 @@ begin
          q1                   => open
       );
 
-   i_palette_ram : jtframe_dual_ram
+   -- Oscar palette RAM: 512 x 16-bit xxxxBBBBGGGGRRRR.
+   -- Main CPU writes individual bytes at $3800-$3BFF (even=high,
+   -- odd=low). Video reads both bytes at the same palette index.
+   i_palette_hi : jtframe_dual_ram
       generic map (
-         AW                   => 10,
+         AW                   => 9,
          DW                   => 8
       )
       port map (
          clk0                 => clk_main_i,
          data0                => cpu_dout,
-         addr0                => cpu_addr(9 downto 0),
-         we0                  => palette_we,
-         q0                   => palette_q,
+         addr0                => cpu_addr(9 downto 1),
+         we0                  => palette_hi_we,
+         q0                   => palette_hi_q,
 
          clk1                 => clk_main_i,
          data1                => (others => '0'),
-         addr1                => (others => '0'),
+         addr1                => palette_addr,
          we1                  => '0',
-         q1                   => open
+         q1                   => palette_data(15 downto 8)
+      );
+
+   i_palette_lo : jtframe_dual_ram
+      generic map (
+         AW                   => 9,
+         DW                   => 8
+      )
+      port map (
+         clk0                 => clk_main_i,
+         data0                => cpu_dout,
+         addr0                => cpu_addr(9 downto 1),
+         we0                  => palette_lo_we,
+         q0                   => palette_lo_q,
+
+         clk1                 => clk_main_i,
+         data1                => (others => '0'),
+         addr1                => palette_addr,
+         we1                  => '0',
+         q1                   => palette_data(7 downto 0)
       );
 
    ----------------------------------------------------------------------------------
@@ -535,7 +565,8 @@ begin
          char_lo_we           => char_lo_we,
          bg_we                => bg_we,
          sprite_we            => sprite_we,
-         palette_we           => palette_we,
+         palette_hi_we        => palette_hi_we,
+         palette_lo_we        => palette_lo_we,
          shared_main_q        => shared_main_q,
          shared_sub_q         => shared_sub_q,
          private_main_q       => private_main_q,
@@ -544,12 +575,15 @@ begin
          cram_main_lo         => cram_main_lo,
          bg_q                 => bg_q,
          sprite_q             => sprite_q,
-         palette_q            => palette_q,
+         palette_hi_q         => palette_hi_q,
+         palette_lo_q         => palette_lo_q,
          main_rom_q           => main_rom_q,
          bank_rom_q           => bank_rom_q,
          sub_rom_q            => sub_rom_q,
          cram_addr            => cram_addr,
          cram_data            => cram_data,
+         palette_addr         => palette_addr,
+         palette_data         => palette_data,
          char_rom_addr        => char_addr,
          char_rom_cs          => char_cs,
          char_rom_data        => char_data,
@@ -562,9 +596,9 @@ begin
 
    video_ce_o      <= pixel_ce;
 
-   video_red_o     <= rgb_r & rgb_r;
-   video_green_o   <= rgb_g & rgb_g;
-   video_blue_o    <= rgb_b & rgb_b;
+   video_red_o     <= rgb_r;
+   video_green_o   <= rgb_g;
+   video_blue_o    <= rgb_b;
 
    video_hs_o      <= hs;
    video_vs_o      <= vs;
