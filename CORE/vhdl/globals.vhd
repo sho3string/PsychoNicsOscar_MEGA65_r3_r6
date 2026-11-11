@@ -41,7 +41,7 @@ constant QNICE_FIRMWARE           : string  := QNICE_FIRMWARE_M2M;
 ----------------------------------------------------------------------------------------------------------
 
 -- @TODO: Your core's clock speed
-constant CORE_CLK_SPEED       : natural := 54_000_000;   -- @TODO YOURCORE expects 54 MHz
+constant CORE_CLK_SPEED       : natural := 48_000_000;   -- @TODO YOURCORE expects 54 MHz
 
 -- System clock speed (crystal that is driving the FPGA) and QNICE clock speed
 -- !!! Do not touch !!!
@@ -56,8 +56,8 @@ constant QNICE_CLK_SPEED      : natural := 50_000_000;   -- a change here has de
 --    VGA_*   size of the core's target output post scandoubler
 --    If in doubt, use twice the values found in this link:
 --    https://mister-devel.github.io/MkDocs_MiSTer/advanced/nativeres/#arcade-core-default-native-resolutions
-constant VGA_DX               : natural := 720;
-constant VGA_DY               : natural := 576;
+constant VGA_DX               : natural := 512;
+constant VGA_DY               : natural := 480;
 
 --    FONT_*  size of one OSM character
 constant FONT_FILE            : string  := "../font/Anikki-16x16-m2m.rom";
@@ -85,6 +85,10 @@ constant C_HMAP_DEMO          : std_logic_vector(15 downto 0) := x"0200";     --
 -- the file- and directory browsing capabilities of the firmware
 constant C_DEV_DEMO_VD        : std_logic_vector(15 downto 0) := x"0101";
 constant C_DEV_DEMO_NOBUFFER  : std_logic_vector(15 downto 0) := x"AAAA";
+
+-- 16 KiB ed08 character ROM, loaded at startup from /arcade/oscar/ed08.
+-- x"0101" is already used by C_DEV_DEMO_VD; keep IDs distinct.
+constant C_DEV_OSCAR_CHAR_ROM   : std_logic_vector(15 downto 0) := x"0102";
 
 -- Virtual drive management system (handled by vdrives.vhd and the firmware)
 -- If you are not using virtual drives, make sure that:
@@ -152,10 +156,14 @@ constant C_CRTROMS_MAN           : crtrom_buf_array := ( x"EEEE", x"EEEE",
 --               c) Don't forget to finish the C_CRTROMS_AUTO array with x"EEEE"
 
 -- M2M framework constants
-constant C_CRTROMS_AUTO_NUM      : natural := 0;                                       -- Amount of automatically loadable ROMs and carts, maximum is 16
-constant C_CRTROMS_AUTO_NAMES    : string  := "" & ENDSTR;
-constant C_CRTROMS_AUTO          : crtrom_buf_array := ( x"EEEE", x"EEEE", x"EEEE", x"EEEE",
-                                                         x"EEEE");                     -- Always finish the array using x"EEEE"
+-- This name refers to the individual, extracted MAME ROM file (not OSCAR.zip).
+constant C_OSCAR_CHAR_ROM_NAME    : string  := "/arcade/oscar/ed08" & ENDSTR;
+constant C_CRTROMS_AUTO_NUM      : natural := 1;
+constant C_CRTROMS_AUTO_NAMES    : string  := C_OSCAR_CHAR_ROM_NAME;
+constant C_CRTROMS_AUTO          : crtrom_buf_array := (
+    C_CRTROMTYPE_DEVICE, C_DEV_OSCAR_CHAR_ROM,
+    C_CRTROMTYPE_MANDATORY, x"0000",
+    x"EEEE");
 
 ----------------------------------------------------------------------------------------------------------
 -- Audio filters

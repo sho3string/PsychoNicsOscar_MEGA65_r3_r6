@@ -104,7 +104,7 @@ port (
    clk_i                   : in  std_logic;              -- 100 MHz clock
 
    -- Share clock and reset with the framework
-   main_clk_o              : out std_logic;              -- CORE's 54 MHz clock
+   main_clk_o              : out std_logic;              -- CORE's 48 MHz clock
    main_rst_o              : out std_logic;              -- CORE's reset, synchronized
 
    -- M2M's reset manager provides 2 signals:
@@ -227,6 +227,9 @@ architecture synthesis of MEGA65_Core is
 signal main_clk               : std_logic;               -- Core main clock
 signal main_rst               : std_logic;
 
+-- QNICE write strobe for the Oscar character ROM. Actual BRAM is in main.vhd.
+signal oscar_char_qnice_we    : std_logic;
+
 ---------------------------------------------------------------------------------------------
 -- main_clk (MiSTer core's clock)
 ---------------------------------------------------------------------------------------------
@@ -255,6 +258,27 @@ constant C_MENU_IMPROVE_AUDIO  : natural := 32;
 signal qnice_demo_vd_data_o   : std_logic_vector(15 downto 0);
 signal qnice_demo_vd_ce       : std_logic;
 signal qnice_demo_vd_we       : std_logic;
+
+-- Unprocessed video output from the core
+signal main_video_red      : std_logic_vector(3 downto 0);   
+signal main_video_green    : std_logic_vector(3 downto 0);
+signal main_video_blue     : std_logic_vector(3 downto 0);
+signal main_video_vs       : std_logic;
+signal main_video_hs       : std_logic;
+signal main_video_hblank   : std_logic;
+signal main_video_vblank   : std_logic;
+
+signal div                 : std_logic := '0';
+signal video_ce            : std_logic;
+signal video_ce_ovl        : std_logic;
+signal video_red           : std_logic_vector(7 downto 0);
+signal video_green         : std_logic_vector(7 downto 0);
+signal video_blue          : std_logic_vector(7 downto 0);
+signal video_vs            : std_logic;
+signal video_hs            : std_logic;
+signal video_vblank        : std_logic;
+signal video_hblank        : std_logic;
+signal video_de            : std_logic;
 
 begin
 
@@ -314,16 +338,19 @@ begin
    -- MMCME2_ADV clock generators:
    --   @TODO YOURCORE:       54 MHz
    clk_gen : entity work.clk
-      port map (
+   port map (
          sys_clk_i         => clk_i,           -- expects 100 MHz
-         main_clk_o        => main_clk,        -- CORE's 54 MHz clock
+         main_clk_o        => main_clk,        -- CORE's 48 MHz clock
          main_rst_o        => main_rst         -- CORE's reset, synchronized
-      ); -- clk_gen
+   ); -- clk_gen
 
-   main_clk_o  <= main_clk;
-   main_rst_o  <= main_rst;
-   video_clk_o <= main_clk;
-   video_rst_o <= main_rst;
+   
+
+   main_clk_o       <= main_clk;
+   main_rst_o       <= main_rst;
+   video_clk_o      <= main_clk;
+   video_rst_o      <= main_rst;
+
 
    ---------------------------------------------------------------------------------------------
    -- main_clk (MiSTer core's clock)
@@ -347,8 +374,15 @@ begin
 
          clk_main_speed_i     => CORE_CLK_SPEED,
 
+         -- Pass the selected QNICE ROM download device into main.vhd.
+         -- All character ROM BRAM and plane assembly live there.
+         dn_clk_i             => qnice_clk_i,
+         dn_addr_i            => qnice_dev_addr_i(13 downto 0),
+         dn_data_i            => qnice_dev_data_i(7 downto 0),
+         dn_wr_i              => oscar_char_qnice_we,
+
          -- Video output
-         -- This is PAL 720x576 @ 50 Hz (pixel clock 27 MHz), but synchronized to main_clk (54 MHz).
+         -- Oscar test video: 6 MHz pixel enable from 48 MHz main clock.
          video_ce_o           => video_ce_o,
          video_ce_ovl_o       => video_ce_ovl_o,
          video_red_o          => video_red_o,
@@ -385,7 +419,7 @@ begin
          pot2_x_i             => main_pot2_x_i,
          pot2_y_i             => main_pot2_y_i
       ); -- i_main
-
+      
    ---------------------------------------------------------------------------------------------
    -- Audio and video settings (QNICE clock domain)
    ---------------------------------------------------------------------------------------------
@@ -419,8 +453,8 @@ begin
    --    "Standard VGA":                     qnice_retro15kHz_o=0 and qnice_csync_o=0
    --    "Retro 15 kHz with HSync and VSync" qnice_retro15kHz_o=1 and qnice_csync_o=0
    --    "Retro 15 kHz with CSync"           qnice_retro15kHz_o=1 and qnice_csync_o=1
-   qnice_retro15kHz_o         <= '0';
-   qnice_csync_o              <= '0';
+   qnice_retro15kHz_o         <= '1';
+   qnice_csync_o              <= '1';
    qnice_osm_cfg_scaling_o    <= (others => '1');
 
    -- ascal filters that are applied while processing the input
@@ -454,6 +488,7 @@ begin
       -- Demo core specific: Delete before starting to port your core
       qnice_demo_vd_ce     <= '0';
       qnice_demo_vd_we     <= '0';
+      oscar_char_qnice_we  <= '0';
 
       case qnice_dev_id_i is
 
@@ -463,22 +498,24 @@ begin
             qnice_demo_vd_we     <= qnice_dev_we_i;
             qnice_dev_data_o     <= qnice_demo_vd_data_o;
 
+         when C_DEV_OSCAR_CHAR_ROM =>
+            -- The automatic loader writes each original ed08 byte into
+            -- this device. Ignore addresses beyond its 16 KiB aperture.
+            if unsigned(qnice_dev_addr_i(27 downto 14)) = 0 then
+               oscar_char_qnice_we <= qnice_dev_ce_i and qnice_dev_we_i;
+               -- Download-only device, as with Double Dragon's ROM bus.
+               -- dualport_2clk_ram has no second read-data output (q_b).
+               qnice_dev_data_o    <= x"0000";
+            else
+               qnice_dev_data_o    <= x"0000";
+            end if;
+
          -- @TODO YOUR RAMs or ROMs (e.g. for cartridges) or other devices here
          -- Device numbers need to be >= 0x0100
 
          when others => null;
       end case;
    end process core_specific_devices;
-
-   ---------------------------------------------------------------------------------------------
-   -- Dual Clocks
-   ---------------------------------------------------------------------------------------------
-
-   -- Put your dual-clock devices such as RAMs and ROMs here
-   --
-   -- Use the M2M framework's official RAM/ROM: dualport_2clk_ram
-   -- and make sure that the you configure the port that works with QNICE as a falling edge
-   -- by setting G_FALLING_A or G_FALLING_B (depending on which port you use) to true.
 
    ---------------------------------------------------------------------------------------
    -- Virtual drive handler
@@ -497,51 +534,6 @@ begin
    main_drive_led_o     <= '0';
    main_drive_led_col_o <= x"00FF00";  -- 24-bit RGB value for the led
 
-   i_vdrives : entity work.vdrives
-      generic map (
-         VDNUM       => C_VDNUM
-      )
-      port map
-      (
-         clk_qnice_i       => qnice_clk_i,
-         clk_core_i        => main_clk,
-         reset_core_i      => main_reset_core_i,
-
-         -- Core clock domain
-         img_mounted_o     => open,
-         img_readonly_o    => open,
-         img_size_o        => open,
-         img_type_o        => open,
-         drive_mounted_o   => open,
-
-         -- Cache output signals: The dirty flags can be used to enforce data consistency
-         -- (for example by ignoring/delaying a reset or delaying a drive unmount/mount, etc.)
-         -- The flushing flags can be used to signal the fact that the caches are currently
-         -- flushing to the user, for example using a special color/signal for example
-         -- at the drive led
-         cache_dirty_o     => open,
-         cache_flushing_o  => open,
-
-         -- QNICE clock domain
-         sd_lba_i          => (others => (others => '0')),
-         sd_blk_cnt_i      => (others => (others => '0')),
-         sd_rd_i           => (others => '0'),
-         sd_wr_i           => (others => '0'),
-         sd_ack_o          => open,
-
-         sd_buff_addr_o    => open,
-         sd_buff_dout_o    => open,
-         sd_buff_din_i     => (others => (others => '0')),
-         sd_buff_wr_o      => open,
-
-         -- QNICE interface (MMIO, 4k-segmented)
-         -- qnice_addr is 28-bit because we have a 16-bit window selector and a 4k window: 65536*4096 = 268.435.456 = 2^28
-         qnice_addr_i      => qnice_dev_addr_i,
-         qnice_data_i      => qnice_dev_data_i,
-         qnice_data_o      => qnice_demo_vd_data_o,
-         qnice_ce_i        => qnice_demo_vd_ce,
-         qnice_we_i        => qnice_demo_vd_we
-      ); -- i_vdrives
-
+   
 end architecture synthesis;
 

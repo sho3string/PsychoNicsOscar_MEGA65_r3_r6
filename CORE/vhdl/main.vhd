@@ -1,9 +1,11 @@
+
 ----------------------------------------------------------------------------------
 -- MiSTer2MEGA65 Framework
 --
--- Wrapper for the MiSTer core that runs exclusively in the core's clock domanin
+-- Wrapper for the Psycho-Nics Oscar core
 --
--- MiSTer2MEGA65 done by sy2002 and MJoergen in 2022 and licensed under GPL v3
+-- MiSTer2MEGA65 done by sy2002 and MJoergen in 2022
+-- Licensed under GPL v3
 ----------------------------------------------------------------------------------
 
 library ieee;
@@ -15,7 +17,7 @@ use work.video_modes_pkg.all;
 
 entity main is
    generic (
-      G_VDNUM                 : natural                     -- amount of virtual drives
+      G_VDNUM                 : natural
    );
    port (
       clk_main_i              : in  std_logic;
@@ -23,9 +25,13 @@ entity main is
       reset_hard_i            : in  std_logic;
       pause_i                 : in  std_logic;
 
-      -- MiSTer core main clock speed:
-      -- Make sure you pass very exact numbers here, because they are used for avoiding clock drift at derived clocks
       clk_main_speed_i        : in  natural;
+
+      -- QNICE ROM download bus (write-only ed08 device).
+      dn_clk_i                : in  std_logic;
+      dn_addr_i               : in  std_logic_vector(13 downto 0);
+      dn_data_i               : in  std_logic_vector(7 downto 0);
+      dn_wr_i                 : in  std_logic;
 
       -- Video output
       video_ce_o              : out std_logic;
@@ -43,10 +49,10 @@ entity main is
       audio_right_o           : out signed(15 downto 0);
 
       -- M2M Keyboard interface
-      kb_key_num_i            : in  integer range 0 to 79;    -- cycles through all MEGA65 keys
-      kb_key_pressed_n_i      : in  std_logic;                -- low active: debounced feedback: is kb_key_num_i pressed right now?
+      kb_key_num_i            : in  integer range 0 to 79;
+      kb_key_pressed_n_i      : in  std_logic;
 
-      -- MEGA65 joysticks and paddles/mouse/potentiometers
+      -- MEGA65 joysticks and paddles
       joy_1_up_n_i            : in  std_logic;
       joy_1_down_n_i          : in  std_logic;
       joy_1_left_n_i          : in  std_logic;
@@ -68,75 +74,231 @@ end entity main;
 
 architecture synthesis of main is
 
--- @TODO: Remove these demo core signals
-signal keyboard_n          : std_logic_vector(79 downto 0);
+   -- Keyboard
+   signal keyboard_n          : std_logic_vector(79 downto 0);
+
+   -- Oscar video
+   signal pixel_ce            : std_logic;
+   signal rgb_r               : std_logic_vector(3 downto 0);
+   signal rgb_g               : std_logic_vector(3 downto 0);
+   signal rgb_b               : std_logic_vector(3 downto 0);
+   signal hs                  : std_logic;
+   signal vs                  : std_logic;
+   signal lhbl                : std_logic;
+   signal lvbl                : std_logic;
+
+   -- Overlay clock enable
+   signal overlay_div         : std_logic := '0';
+
+   -- Character ROM storage and JTFRAME read interface.
+   -- ed08 is four unmodified 4 KiB banks; video reads three planes
+   -- concurrently on the 48 MHz core clock.
+   signal char_addr           : std_logic_vector(12 downto 0);
+   signal char_cs             : std_logic;
+   signal char_data           : std_logic_vector(23 downto 0);
+   signal char_half_d         : std_logic := '0';
+
+   type t_char_banks is array (0 to 3) of std_logic_vector(7 downto 0);
+   signal char_bank_q         : t_char_banks;
+   signal char_bank_we        : std_logic_vector(3 downto 0);
+
+   -- Same 8-bit dual-port primitive/interface used in Double Dragon.
+   component dualport_2clk_ram is
+      generic (
+         FALLING_A            : boolean := false;
+         FALLING_B            : boolean := false;
+         ADDR_WIDTH           : integer := 8
+      );
+      port (
+         clock_a              : in  std_logic;
+         clen_a               : in  std_logic := '1';
+         address_a            : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+         q_a                  : out std_logic_vector(7 downto 0);
+         clock_b              : in  std_logic;
+         clen_b               : in  std_logic := '1';
+         address_b            : in  std_logic_vector(ADDR_WIDTH-1 downto 0);
+         data_b               : in  std_logic_vector(7 downto 0);
+         wren_b               : in  std_logic
+      );
+   end component;
+
+   -- Verilog module declaration for mixed-language instantiation
+   component jtoscar_game is
+      port (
+         rst                  : in  std_logic;
+         clk                  : in  std_logic;
+         cen_main             : in  std_logic;
+         cen_sub              : in  std_logic;
+         cen_snd              : in  std_logic;
+         cen_pixel            : in  std_logic;
+
+         pxl_cen              : out std_logic;
+         HS                   : out std_logic;
+         VS                   : out std_logic;
+         LHBL                 : out std_logic;
+         LVBL                 : out std_logic;
+         red                  : out std_logic_vector(3 downto 0);
+         green                : out std_logic_vector(3 downto 0);
+         blue                 : out std_logic_vector(3 downto 0);
+
+         main_rom_addr        : out std_logic_vector(19 downto 0);
+         main_rom_data        : in  std_logic_vector(7 downto 0);
+         sub_rom_addr         : out std_logic_vector(19 downto 0);
+         sub_rom_data         : in  std_logic_vector(7 downto 0);
+         snd_rom_addr         : out std_logic_vector(19 downto 0);
+         snd_rom_data         : in  std_logic_vector(7 downto 0);
+         char_rom_addr        : out std_logic_vector(12 downto 0);
+         char_rom_cs          : out std_logic;
+         char_rom_data        : in  std_logic_vector(23 downto 0);
+         char_rom_ok          : in  std_logic;
+         obj_rom_addr         : out std_logic_vector(19 downto 0);
+         obj_rom_data         : in  std_logic_vector(7 downto 0);
+         scr_rom_addr         : out std_logic_vector(19 downto 0);
+         scr_rom_data         : in  std_logic_vector(7 downto 0)
+      );
+   end component;
 
 begin
 
-   -- @TODO: Add the actual MiSTer core here
-   -- The demo core's purpose is to show a test image and to make sure, that the MiSTer2MEGA65 framework
-   -- can be synthesized and run stand-alone without an actual MiSTer core being there, yet
-   i_democore : entity work.democore
-      port map (
-         clk_main_i           => clk_main_i,
+   ----------------------------------------------------------------------------------
+   -- Keyboard
+   ----------------------------------------------------------------------------------
 
-         reset_i              => reset_soft_i or reset_hard_i,       -- long and short press of reset button mean the same
-         pause_i              => pause_i,
-
-         ball_col_rgb_i       => x"EE4020",                          -- ball color (RGB): orange
-         paddle_speed_i       => x"1",                               -- paddle speed is about 50 pixels / sec (due to 50 Hz)
-
-         keyboard_n_i         => keyboard_n,                         -- move the paddle with the cursor left/right keys...
-         joy_up_n_i           => joy_1_up_n_i,                       -- ... or move the paddle with a joystick in port #1
-         joy_down_n_i         => joy_1_down_n_i,
-         joy_left_n_i         => joy_1_left_n_i,
-         joy_right_n_i        => joy_1_right_n_i,
-         joy_fire_n_i         => joy_1_fire_n_i,
-
-         vga_ce_o             => video_ce_o,
-         vga_red_o            => video_red_o,
-         vga_green_o          => video_green_o,
-         vga_blue_o           => video_blue_o,
-         vga_vs_o             => video_vs_o,
-         vga_hs_o             => video_hs_o,
-         vga_hblank_o         => video_hblank_o,
-         vga_vblank_o         => video_vblank_o,
-
-         audio_left_o         => audio_left_o,
-         audio_right_o        => audio_right_o
-      ); -- i_democore
-
-   -- On video_ce_o and video_ce_ovl_o: You have an important @TODO when porting a core:
-   -- video_ce_o: You need to make sure that video_ce_o divides clk_main_i such that it transforms clk_main_i
-   --             into the pixelclock of the core (means: the core's native output resolution pre-scandoubler)
-   -- video_ce_ovl_o: Clock enable for the OSM overlay and for sampling the core's (retro) output in a way that
-   --             it is displayed correctly on a "modern" analog input device: Make sure that video_ce_ovl_o
-   --             transforms clk_main_o into the post-scandoubler pixelclock that is valid for the target
-   --             resolution specified by VGA_DX/VGA_DY (globals.vhd)
-   -- video_retro15kHz_o: '1', if the output from the core (post-scandoubler) in the retro 15 kHz analog RGB mode.
-   --             Hint: Scandoubler off does not automatically mean retro 15 kHz on.
-   video_ce_ovl_o <= video_ce_o;
-
-   -- @TODO: Keyboard mapping and keyboard behavior
-   -- Each core is treating the keyboard in a different way: Some need low-active "matrices", some
-   -- might need small high-active keyboard memories, etc. This is why the MiSTer2MEGA65 framework
-   -- lets you define literally everything and only provides a minimal abstraction layer to the keyboard.
-   -- You need to adjust keyboard.vhd to your needs
    i_keyboard : entity work.keyboard
       port map (
          clk_main_i           => clk_main_i,
-
-         -- Interface to the MEGA65 keyboard
          key_num_i            => kb_key_num_i,
          key_pressed_n_i      => kb_key_pressed_n_i,
-
-         -- @TODO: Create the kind of keyboard output that your core needs
-         -- "example_n_o" is a low active register and used by the demo core:
-         --    bit 0: Space
-         --    bit 1: Return
-         --    bit 2: Run/Stop
          example_n_o          => keyboard_n
-      ); -- i_keyboard
+      );
+
+   ----------------------------------------------------------------------------------
+   -- Character ROM: four 4 KiB banks, exactly as stored in ed08.
+   -- QNICE writes on its falling edge; video reads at 48 MHz rising edge.
+   -- Unlike the previous mega65.vhd version, this uses the actual
+   -- dualport_2clk_ram interface: read-only port A, write-only port B.
+   ----------------------------------------------------------------------------------
+
+   gen_oscar_char_banks : for i in 0 to 3 generate
+   begin
+      char_bank_we(i) <= dn_wr_i
+         when unsigned(dn_addr_i(13 downto 12)) = to_unsigned(i, 2)
+         else '0';
+
+      i_char_rom : dualport_2clk_ram
+         generic map (
+            FALLING_B  => true,
+            ADDR_WIDTH => 12
+         )
+         port map (
+            clock_a   => clk_main_i,
+            address_a => char_addr(11 downto 0),
+            q_a       => char_bank_q(i),
+
+            clock_b   => dn_clk_i,
+            address_b => dn_addr_i(11 downto 0),
+            data_b    => dn_data_i,
+            wren_b    => char_bank_we(i)
+         );
+   end generate gen_oscar_char_banks;
+
+   -- Register bit 9 of the character code with the synchronous BRAM
+   -- outputs so the selected ROM-plane group belongs to the same read.
+   process(clk_main_i)
+   begin
+      if rising_edge(clk_main_i) then
+         char_half_d <= char_addr(12);
+      end if;
+   end process;
+
+   -- MAME oscar_charlayout, using the original ed08 byte offsets:
+   -- code 0..511:   plane2 = 0x1000, plane1 = 0x2000, plane0 = 0x3000
+   -- code 512..1023: plane2 = 0x2000, plane1 = 0x3000, plane0 = 0x4000
+   -- The last plane is outside the loaded 16 KiB ROM and reads as zero.
+   char_data <= char_bank_q(1) & char_bank_q(2) & char_bank_q(3)
+      when char_half_d = '0' else
+      char_bank_q(2) & char_bank_q(3) & x"00";
+
+   ----------------------------------------------------------------------------------
+   -- Psycho-Nics Oscar game core
+   ----------------------------------------------------------------------------------
+
+   i_oscar_game : jtoscar_game
+      port map (
+         clk                  => clk_main_i,
+         rst                  => reset_hard_i or reset_soft_i,
+
+         -- CPU clock enables not yet implemented
+         cen_main             => '0',
+         cen_sub              => '0',
+         cen_snd              => '0',
+         cen_pixel            => '0',
+
+         -- Video
+         pxl_cen              => pixel_ce,
+         HS                   => hs,
+         VS                   => vs,
+         LHBL                 => lhbl,
+         LVBL                 => lvbl,
+         red                  => rgb_r,
+         green                => rgb_g,
+         blue                 => rgb_b,
+
+         -- Character ROM from local dual-port BRAM; other ROMs are placeholders.
+         main_rom_addr        => open,
+         main_rom_data        => (others => '0'),
+         sub_rom_addr         => open,
+         sub_rom_data         => (others => '0'),
+         snd_rom_addr         => open,
+         snd_rom_data         => (others => '0'),
+         char_rom_addr        => char_addr,
+         char_rom_cs          => char_cs,
+         char_rom_data        => char_data,
+         char_rom_ok          => '1',
+         obj_rom_addr         => open,
+         obj_rom_data         => (others => '0'),
+         scr_rom_addr         => open,
+         scr_rom_data         => (others => '0')
+      );
+
+   ----------------------------------------------------------------------------------
+   -- Video output to MiSTer2MEGA65
+   ----------------------------------------------------------------------------------
+
+   video_ce_o      <= pixel_ce;
+
+   video_red_o     <= rgb_r & rgb_r;
+   video_green_o   <= rgb_g & rgb_g;
+   video_blue_o    <= rgb_b & rgb_b;
+
+   video_hs_o      <= hs;
+   video_vs_o      <= vs;
+
+   video_hblank_o  <= not lhbl;
+   video_vblank_o  <= not lvbl;
+
+   ----------------------------------------------------------------------------------
+   -- Overlay clock enable: 48 MHz / 2 = 24 MHz
+   ----------------------------------------------------------------------------------
+
+   process(clk_main_i)
+   begin
+      if rising_edge(clk_main_i) then
+         if reset_hard_i = '1' or reset_soft_i = '1' then
+            overlay_div <= '0';
+         else
+            overlay_div <= not overlay_div;
+         end if;
+      end if;
+   end process;
+
+   video_ce_ovl_o <= overlay_div;
+
+   ----------------------------------------------------------------------------------
+   -- Audio (not yet implemented)
+   ----------------------------------------------------------------------------------
+
+   audio_left_o  <= (others => '0');
+   audio_right_o <= (others => '0');
 
 end architecture synthesis;
-
