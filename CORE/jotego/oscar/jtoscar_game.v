@@ -11,6 +11,8 @@ module jtoscar_game (
     output wire [7:0]  red,
     output wire [7:0]  green,
     output wire [7:0]  blue,
+    output wire signed [15:0] audio_ym2203,
+    output wire signed [15:0] audio_ym3526,
 
     // CPU buses and banked ROM address.
     output wire [15:0] cpu_addr,
@@ -72,10 +74,19 @@ module jtoscar_game (
     // MXC06 original sprite ROMs (ed04, ed05, ed06, ed07).
     output wire        obj_rom_cs,
     output wire [16:0] obj_rom_addr,
-    input  wire [31:0] obj_rom_data
+    input  wire [31:0] obj_rom_data,
+
+    // DECO 222 sound CPU memory remains in main.vhd.
+    output wire [14:0] sound_rom_addr,
+    input  wire [7:0]  sound_rom_data,
+    output wire [10:0] sound_ram_addr,
+    output wire [7:0]  sound_ram_dout,
+    output wire        sound_ram_we,
+    input  wire [7:0]  sound_ram_data
 );
 
     wire sprite_copy;
+    wire sound_wr;
 
     jtoscar_main u_main (
         .clk             ( clk             ),
@@ -97,6 +108,7 @@ module jtoscar_game (
         .bac_reg_wr      ( bac_reg_wr      ),
         .sprite_we       ( sprite_we       ),
         .sprite_copy     ( sprite_copy     ),
+        .sound_wr        ( sound_wr        ),
         .palette_hi_we   ( palette_hi_we   ),
         .palette_lo_we   ( palette_lo_we   ),
 
@@ -151,6 +163,22 @@ module jtoscar_game (
         .red          ( red          ),
         .green        ( green        ),
         .blue         ( blue         )
+    );
+
+    // DECO 222 (T65) / YM2203 / YM3526. Video path is unchanged.
+    jtoscar_sound u_sound (
+        .clk            ( clk            ),
+        .rst            ( rst            ),
+        .sound_cmd      ( cpu_dout       ),
+        .sound_cmd_wr   ( sound_wr       ),
+        .rom_addr       ( sound_rom_addr ),
+        .rom_data       ( sound_rom_data ),
+        .ram_addr       ( sound_ram_addr ),
+        .ram_dout       ( sound_ram_dout ),
+        .ram_we         ( sound_ram_we   ),
+        .ram_data       ( sound_ram_data ),
+        .ym2203_pcm     ( audio_ym2203  ),
+        .ym3526_pcm     ( audio_ym3526  )
     );
 
 endmodule

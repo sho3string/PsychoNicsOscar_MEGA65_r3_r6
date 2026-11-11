@@ -152,6 +152,16 @@ architecture synthesis of main is
    signal obj_rom_we           : std_logic_vector(3 downto 0);
    type t_obj_planes is array (0 to 3) of std_logic_vector(7 downto 0);
    signal obj_rom_q            : t_obj_planes;
+   signal sound_rom_q          : std_logic_vector(7 downto 0);
+   signal sound_rom_we         : std_logic;
+   signal sound_rom_addr       : std_logic_vector(14 downto 0);
+   signal sound_ram_q          : std_logic_vector(7 downto 0);
+   signal sound_ram_addr       : std_logic_vector(10 downto 0);
+   signal sound_ram_dout       : std_logic_vector(7 downto 0);
+   signal sound_ram_we         : std_logic;
+   signal sound_ym2203         : std_logic_vector(15 downto 0);
+   signal sound_ym3526         : std_logic_vector(15 downto 0);
+   signal audio_mixed          : signed(15 downto 0);
    signal sprite_q             : std_logic_vector(7 downto 0);
    signal palette_hi_q         : std_logic_vector(7 downto 0);
    signal palette_lo_q         : std_logic_vector(7 downto 0);
@@ -224,6 +234,8 @@ architecture synthesis of main is
          red                   : out std_logic_vector(7 downto 0);
          green                 : out std_logic_vector(7 downto 0);
          blue                  : out std_logic_vector(7 downto 0);
+         audio_ym2203          : out std_logic_vector(15 downto 0);
+         audio_ym3526          : out std_logic_vector(15 downto 0);
          cpu_addr              : out std_logic_vector(15 downto 0);
          sub_addr              : out std_logic_vector(15 downto 0);
          cpu_dout              : out std_logic_vector(7 downto 0);
@@ -269,7 +281,13 @@ architecture synthesis of main is
          bg_rom_data           : in  std_logic_vector(31 downto 0);
          obj_rom_cs            : out std_logic;
          obj_rom_addr          : out std_logic_vector(16 downto 0);
-         obj_rom_data          : in  std_logic_vector(31 downto 0)
+         obj_rom_data          : in  std_logic_vector(31 downto 0);
+         sound_rom_addr        : out std_logic_vector(14 downto 0);
+         sound_rom_data        : in  std_logic_vector(7 downto 0);
+         sound_ram_addr        : out std_logic_vector(10 downto 0);
+         sound_ram_dout        : out std_logic_vector(7 downto 0);
+         sound_ram_we          : out std_logic;
+         sound_ram_data        : in  std_logic_vector(7 downto 0)
       );
    end component;
 
@@ -291,6 +309,8 @@ begin
    obj_rom_we(1) <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_OBJ1_ROM else '0';
    obj_rom_we(2) <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_OBJ2_ROM else '0';
    obj_rom_we(3) <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_OBJ3_ROM else '0';
+
+   sound_rom_we  <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_SOUND_ROM and dn_addr_i(15) = '0' else '0';
 
    ----------------------------------------------------------------------------------
    -- Keyboard
@@ -400,6 +420,45 @@ begin
          address_b            => dn_addr_i,
          data_b               => dn_data_i,
          wren_b               => sub_rom_we
+      );
+
+   ----------------------------------------------------------------------------------
+   -- DECO 222 sound ROM: original ed12, 32 KiB mapped at $8000-$FFFF.
+   -- Sound RAM: 2 KiB physical BRAM, CPU uses $0000-$05FF.
+   ----------------------------------------------------------------------------------
+   i_sound_rom : dualport_2clk_ram
+      generic map (
+         FALLING_B            => true,
+         ADDR_WIDTH           => 15
+      )
+      port map (
+         clock_a              => clk_main_i,
+         address_a            => sound_rom_addr,
+         q_a                  => sound_rom_q,
+
+         clock_b              => dn_clk_i,
+         address_b            => dn_addr_i(14 downto 0),
+         data_b               => dn_data_i,
+         wren_b               => sound_rom_we
+      );
+
+   i_sound_ram : jtframe_dual_ram
+      generic map (
+         AW                   => 11,
+         DW                   => 8
+      )
+      port map (
+         clk0                 => clk_main_i,
+         data0                => sound_ram_dout,
+         addr0                => sound_ram_addr,
+         we0                  => sound_ram_we,
+         q0                   => sound_ram_q,
+
+         clk1                 => clk_main_i,
+         data1                => (others => '0'),
+         addr1                => (others => '0'),
+         we1                  => '0',
+         q1                   => open
       );
 
    -- Both CPUs can access shared RAM concurrently (address $0000-$0eff
@@ -713,6 +772,8 @@ begin
          red                  => rgb_r,
          green                => rgb_g,
          blue                 => rgb_b,
+         audio_ym2203         => sound_ym2203,
+         audio_ym3526         => sound_ym3526,
          cpu_addr             => cpu_addr,
          sub_addr             => sub_addr,
          cpu_dout             => cpu_dout,
@@ -758,7 +819,13 @@ begin
          bg_rom_data          => bg_rom_data,
          obj_rom_cs           => obj_rom_cs,
          obj_rom_addr         => obj_rom_addr,
-         obj_rom_data         => obj_rom_data
+         obj_rom_data         => obj_rom_data,
+         sound_rom_addr       => sound_rom_addr,
+         sound_rom_data       => sound_rom_q,
+         sound_ram_addr       => sound_ram_addr,
+         sound_ram_dout       => sound_ram_dout,
+         sound_ram_we         => sound_ram_we,
+         sound_ram_data       => sound_ram_q
       );
 
    ----------------------------------------------------------------------------------
@@ -795,10 +862,37 @@ begin
    video_ce_ovl_o <= overlay_div;
 
    ----------------------------------------------------------------------------------
-   -- Audio (not yet implemented)
+   -- Oscar sound mixer: YM2203 and YM3526 through the JTFRAME mixer.
    ----------------------------------------------------------------------------------
 
-   audio_left_o  <= (others => '0');
-   audio_right_o <= (others => '0');
+   i_audio_mixer : entity work.jtframe_mixer
+      generic map (
+         W0                   => 16,
+         W1                   => 16,
+         W2                   => 16,
+         W3                   => 16,
+         WOUT                 => 16
+      )
+      port map (
+         rst                  => reset_hard_i or reset_soft_i,
+         clk                  => clk_main_i,
+         cen                  => '1',
+
+         ch0                  => signed(sound_ym2203),
+         ch1                  => signed(sound_ym3526),
+         ch2                  => to_signed(0, 16),
+         ch3                  => to_signed(0, 16),
+
+         gain0                => x"08",
+         gain1                => x"08",
+         gain2                => x"00",
+         gain3                => x"00",
+
+         mixed                => audio_mixed,
+         peak                 => open
+      );
+
+   audio_left_o  <= audio_mixed;
+   audio_right_o <= audio_mixed;
 
 end architecture synthesis;

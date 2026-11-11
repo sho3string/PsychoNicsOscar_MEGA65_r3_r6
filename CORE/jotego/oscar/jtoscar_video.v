@@ -120,7 +120,7 @@ module jtoscar_video (
     // Oscar's character RAM contains [attribute, code] byte pairs.
     // Keep the existing video timing and diagnostic H/V offsets.
     // ------------------------------------------------------------
-    wire [8:0] vchar = vdump - 9'd8;
+    wire [8:0] vchar = vdump - 9'd2;
     wire [9:0] char_vram_addr;
     wire [5:0] char_pxl;
 

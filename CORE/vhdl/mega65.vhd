@@ -504,7 +504,8 @@ begin
               C_DEV_OSCAR_BG0_ROM | C_DEV_OSCAR_BG1_ROM |
               C_DEV_OSCAR_BG2_ROM | C_DEV_OSCAR_BG3_ROM |
               C_DEV_OSCAR_OBJ0_ROM | C_DEV_OSCAR_OBJ1_ROM |
-              C_DEV_OSCAR_OBJ2_ROM | C_DEV_OSCAR_OBJ3_ROM =>
+              C_DEV_OSCAR_OBJ2_ROM | C_DEV_OSCAR_OBJ3_ROM |
+              C_DEV_OSCAR_SOUND_ROM =>
             -- Download-only devices. All ROMs and their write decoding are
             -- in main.vhd (the same architecture as the Double Dragon port).
             -- Each device starts at address zero, with its own file length.
@@ -539,4 +540,3 @@ begin
 
    
 end architecture synthesis;
-

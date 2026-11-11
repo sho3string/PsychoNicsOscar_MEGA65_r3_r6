@@ -100,6 +100,7 @@ constant C_DEV_OSCAR_OBJ0_ROM   : std_logic_vector(15 downto 0) := x"010A"; -- e
 constant C_DEV_OSCAR_OBJ1_ROM   : std_logic_vector(15 downto 0) := x"010B"; -- ed05
 constant C_DEV_OSCAR_OBJ2_ROM   : std_logic_vector(15 downto 0) := x"010C"; -- ed06
 constant C_DEV_OSCAR_OBJ3_ROM   : std_logic_vector(15 downto 0) := x"010D"; -- ed07
+constant C_DEV_OSCAR_SOUND_ROM  : std_logic_vector(15 downto 0) := x"010E"; -- ed12
 
 -- Virtual drive management system (handled by vdrives.vhd and the firmware)
 -- If you are not using virtual drives, make sure that:
@@ -180,8 +181,9 @@ constant C_OSCAR_OBJ0_ROM_NAME : string := "/arcade/oscar/ed04" & ENDSTR;
 constant C_OSCAR_OBJ1_ROM_NAME : string := "/arcade/oscar/ed05" & ENDSTR;
 constant C_OSCAR_OBJ2_ROM_NAME : string := "/arcade/oscar/ed06" & ENDSTR;
 constant C_OSCAR_OBJ3_ROM_NAME : string := "/arcade/oscar/ed07" & ENDSTR;
+constant C_OSCAR_SOUND_ROM_NAME : string := "/arcade/oscar/ed12" & ENDSTR;
 
-constant C_CRTROMS_AUTO_NUM   : natural := 12;
+constant C_CRTROMS_AUTO_NUM   : natural := 13;
 constant C_CRTROMS_AUTO_NAMES : string  := C_OSCAR_CHAR_ROM_NAME &
                                            C_OSCAR_MAIN_ROM_NAME &
                                            C_OSCAR_BANK_ROM_NAME &
@@ -193,7 +195,8 @@ constant C_CRTROMS_AUTO_NAMES : string  := C_OSCAR_CHAR_ROM_NAME &
                                            C_OSCAR_OBJ0_ROM_NAME &
                                            C_OSCAR_OBJ1_ROM_NAME &
                                            C_OSCAR_OBJ2_ROM_NAME &
-                                           C_OSCAR_OBJ3_ROM_NAME;
+                                           C_OSCAR_OBJ3_ROM_NAME &
+                                           C_OSCAR_SOUND_ROM_NAME;
 constant C_CRTROMS_AUTO : crtrom_buf_array := (
    C_CRTROMTYPE_DEVICE, C_DEV_OSCAR_CHAR_ROM,
    C_CRTROMTYPE_MANDATORY, x"0000",
@@ -285,6 +288,10 @@ constant C_CRTROMS_AUTO : crtrom_buf_array := (
                                                        C_OSCAR_OBJ0_ROM_NAME'length +
                                                        C_OSCAR_OBJ1_ROM_NAME'length +
                                                        C_OSCAR_OBJ2_ROM_NAME'length, 16)),
+
+   C_CRTROMTYPE_DEVICE, C_DEV_OSCAR_SOUND_ROM,
+   C_CRTROMTYPE_MANDATORY, std_logic_vector(to_unsigned(C_CRTROMS_AUTO_NAMES'length -
+                                                       C_OSCAR_SOUND_ROM_NAME'length, 16)),
    x"EEEE");
 
 ----------------------------------------------------------------------------------------------------------
