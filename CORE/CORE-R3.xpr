@@ -157,6 +157,13 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
+      <File Path="$PPRDIR/jotego/oscar/jtoscar_main.v">
+        <FileInfo>
+          <Attr Name="UsedIn" Val="synthesis"/>
+          <Attr Name="UsedIn" Val="implementation"/>
+          <Attr Name="UsedIn" Val="simulation"/>
+        </FileInfo>
+      </File>
       <File Path="$PPRDIR/jotego/oscar/jtoscar_video.v">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
