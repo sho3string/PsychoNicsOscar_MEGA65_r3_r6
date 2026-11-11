@@ -228,7 +228,7 @@ signal main_clk               : std_logic;               -- Core main clock
 signal main_rst               : std_logic;
 
 -- QNICE write strobe for the Oscar character ROM. Actual BRAM is in main.vhd.
-signal oscar_char_qnice_we    : std_logic;
+signal oscar_rom_qnice_we    : std_logic;
 
 ---------------------------------------------------------------------------------------------
 -- main_clk (MiSTer core's clock)
@@ -377,9 +377,10 @@ begin
          -- Pass the selected QNICE ROM download device into main.vhd.
          -- All character ROM BRAM and plane assembly live there.
          dn_clk_i             => qnice_clk_i,
-         dn_addr_i            => qnice_dev_addr_i(13 downto 0),
+         dn_addr_i            => qnice_dev_addr_i(15 downto 0),
          dn_data_i            => qnice_dev_data_i(7 downto 0),
-         dn_wr_i              => oscar_char_qnice_we,
+         dn_dev_i             => qnice_dev_id_i,
+         dn_wr_i              => oscar_rom_qnice_we,
 
          -- Video output
          -- Oscar test video: 6 MHz pixel enable from 48 MHz main clock.
@@ -488,7 +489,7 @@ begin
       -- Demo core specific: Delete before starting to port your core
       qnice_demo_vd_ce     <= '0';
       qnice_demo_vd_we     <= '0';
-      oscar_char_qnice_we  <= '0';
+      oscar_rom_qnice_we  <= '0';
 
       case qnice_dev_id_i is
 
@@ -498,17 +499,15 @@ begin
             qnice_demo_vd_we     <= qnice_dev_we_i;
             qnice_dev_data_o     <= qnice_demo_vd_data_o;
 
-         when C_DEV_OSCAR_CHAR_ROM =>
-            -- The automatic loader writes each original ed08 byte into
-            -- this device. Ignore addresses beyond its 16 KiB aperture.
-            if unsigned(qnice_dev_addr_i(27 downto 14)) = 0 then
-               oscar_char_qnice_we <= qnice_dev_ce_i and qnice_dev_we_i;
-               -- Download-only device, as with Double Dragon's ROM bus.
-               -- dualport_2clk_ram has no second read-data output (q_b).
-               qnice_dev_data_o    <= x"0000";
-            else
-               qnice_dev_data_o    <= x"0000";
+         when C_DEV_OSCAR_CHAR_ROM | C_DEV_OSCAR_MAIN_ROM |
+              C_DEV_OSCAR_BANK_ROM | C_DEV_OSCAR_SUB_ROM =>
+            -- Download-only devices. All ROMs and their write decoding are
+            -- in main.vhd (the same architecture as the Double Dragon port).
+            -- Each device starts at address zero, with its own file length.
+            if unsigned(qnice_dev_addr_i(27 downto 16)) = 0 then
+               oscar_rom_qnice_we <= qnice_dev_ce_i and qnice_dev_we_i;
             end if;
+            qnice_dev_data_o <= x"0000";
 
          -- @TODO YOUR RAMs or ROMs (e.g. for cartridges) or other devices here
          -- Device numbers need to be >= 0x0100

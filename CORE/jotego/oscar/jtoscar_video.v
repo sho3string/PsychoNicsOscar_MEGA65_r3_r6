@@ -3,8 +3,7 @@
 // 48 MHz FPGA clock, 6 MHz pixel enable.
 // Original jtframe_vtimer timings preserved from jtoscar_video(3).v.
 //
-// Temporary display: jtframe_tilemap reads a 2 KiB snapshot of Oscar's
-// character RAM, captured during MAME's startup RAM-test screen.
+// Display: jtframe_tilemap reads live 2 KiB character RAM written by the main 6809.
 // ROM data is 3 x 8-bit planes in {bit2,bit1,bit0} order; the external
 // ROM adapter supplies it from the original ed08 image.
 //
@@ -103,30 +102,29 @@ module jtoscar_video (
         .BPP          ( 3   ),
         .MAP_HW       ( 8   ),
         .MAP_VW       ( 8   ),
-        .HDUMP_OFFSET ( 0 )
+        .HDUMP_OFFSET ( 0   )
     ) u_char (
-        .rst         ( rst                              ),
-        .clk         ( clk                              ),
-        .pxl_cen     ( pxl_cen                          ),
-        .vdump       ( vchar                            ),
-        .hdump       ( hdump                            ),
-        .blankn      ( LVBL                             ),
-        .flip        ( 1'b0                             ),
-        .vram_addr   ( char_vram_addr                   ),
+        .rst         ( rst            ),
+        .clk         ( clk            ),
+        .pxl_cen     ( pxl_cen        ),
+        .vdump       ( vchar          ),
+        .hdump       ( hdump          ),
+        .blankn      ( LVBL           ),
+        .flip        ( 1'b0           ),
+        .vram_addr   ( char_vram_addr ),
         .code        ( {cram_data[9:8], cram_data[7:0]} ),
-        .pal         ( {1'b0, cram_data[15:14]}         ),
-        .hflip       ( 1'b0                             ),
-        .vflip       ( 1'b0                             ),
-        .rom_cs      ( char_cs                          ),
-        .rom_addr    ( char_addr                        ),
-        .rom_data    ( char_data                        ),
-        .rom_ok      ( char_ok                          ),
-        .pxl         ( char_pxl                         )
+        .pal         ( {1'b0, cram_data[15:14]} ),
+        .hflip       ( 1'b0           ),
+        .vflip       ( 1'b0           ),
+        .rom_cs      ( char_cs        ),
+        .rom_addr    ( char_addr      ),
+        .rom_data    ( char_data      ),
+        .rom_ok      ( char_ok        ),
+        .pxl         ( char_pxl       )
     );
 
-    // Monochrome RAM-test colour mixer. Oscar's hardware palette and
-    // layer priority logic are not implemented yet. In this snapshot,
-    // every attribute byte is $00, and all text is white on black.
+    // Temporary monochrome colour mixer. Oscar's hardware palette and
+    // layer priority logic are not implemented yet. Character attributes are not yet converted to arcade RGB.
     jtoscar_colmix u_colmix (
         .LHBL     ( LHBL     ),
         .LVBL     ( LVBL     ),

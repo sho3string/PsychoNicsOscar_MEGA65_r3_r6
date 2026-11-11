@@ -89,6 +89,9 @@ constant C_DEV_DEMO_NOBUFFER  : std_logic_vector(15 downto 0) := x"AAAA";
 -- 16 KiB ed08 character ROM, loaded at startup from /arcade/oscar/ed08.
 -- x"0101" is already used by C_DEV_DEMO_VD; keep IDs distinct.
 constant C_DEV_OSCAR_CHAR_ROM   : std_logic_vector(15 downto 0) := x"0102";
+constant C_DEV_OSCAR_MAIN_ROM   : std_logic_vector(15 downto 0) := x"0103";
+constant C_DEV_OSCAR_BANK_ROM   : std_logic_vector(15 downto 0) := x"0104";
+constant C_DEV_OSCAR_SUB_ROM    : std_logic_vector(15 downto 0) := x"0105";
 
 -- Virtual drive management system (handled by vdrives.vhd and the firmware)
 -- If you are not using virtual drives, make sure that:
@@ -157,13 +160,29 @@ constant C_CRTROMS_MAN           : crtrom_buf_array := ( x"EEEE", x"EEEE",
 
 -- M2M framework constants
 -- This name refers to the individual, extracted MAME ROM file (not OSCAR.zip).
-constant C_OSCAR_CHAR_ROM_NAME    : string  := "/arcade/oscar/ed08" & ENDSTR;
-constant C_CRTROMS_AUTO_NUM      : natural := 1;
-constant C_CRTROMS_AUTO_NAMES    : string  := C_OSCAR_CHAR_ROM_NAME;
-constant C_CRTROMS_AUTO          : crtrom_buf_array := (
-    C_CRTROMTYPE_DEVICE, C_DEV_OSCAR_CHAR_ROM,
-    C_CRTROMTYPE_MANDATORY, x"0000",
-    x"EEEE");
+constant C_OSCAR_CHAR_ROM_NAME : string := "/arcade/oscar/ed08" & ENDSTR;
+constant C_OSCAR_MAIN_ROM_NAME : string := "/arcade/oscar/du10" & ENDSTR;
+constant C_OSCAR_BANK_ROM_NAME : string := "/arcade/oscar/ed09" & ENDSTR;
+constant C_OSCAR_SUB_ROM_NAME  : string := "/arcade/oscar/du11" & ENDSTR;
+
+constant C_CRTROMS_AUTO_NUM   : natural := 4;
+constant C_CRTROMS_AUTO_NAMES : string  := C_OSCAR_CHAR_ROM_NAME &
+                                           C_OSCAR_MAIN_ROM_NAME &
+                                           C_OSCAR_BANK_ROM_NAME &
+                                           C_OSCAR_SUB_ROM_NAME;
+constant C_CRTROMS_AUTO : crtrom_buf_array := (
+   C_CRTROMTYPE_DEVICE, C_DEV_OSCAR_CHAR_ROM,
+   C_CRTROMTYPE_MANDATORY, x"0000",
+   C_CRTROMTYPE_DEVICE, C_DEV_OSCAR_MAIN_ROM,
+   C_CRTROMTYPE_MANDATORY, std_logic_vector(to_unsigned(C_OSCAR_CHAR_ROM_NAME'length, 16)),
+   C_CRTROMTYPE_DEVICE, C_DEV_OSCAR_BANK_ROM,
+   C_CRTROMTYPE_MANDATORY, std_logic_vector(to_unsigned(C_OSCAR_CHAR_ROM_NAME'length +
+                                                       C_OSCAR_MAIN_ROM_NAME'length, 16)),
+   C_CRTROMTYPE_DEVICE, C_DEV_OSCAR_SUB_ROM,
+   C_CRTROMTYPE_MANDATORY, std_logic_vector(to_unsigned(C_OSCAR_CHAR_ROM_NAME'length +
+                                                       C_OSCAR_MAIN_ROM_NAME'length +
+                                                       C_OSCAR_BANK_ROM_NAME'length, 16)),
+   x"EEEE");
 
 ----------------------------------------------------------------------------------------------------------
 -- Audio filters
