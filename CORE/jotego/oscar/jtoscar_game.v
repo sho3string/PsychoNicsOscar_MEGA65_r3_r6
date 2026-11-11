@@ -67,8 +67,15 @@ module jtoscar_game (
     input  wire [15:0] bg_ram_data,
     output wire        bg_rom_cs,
     output wire [16:0] bg_rom_addr,
-    input  wire [31:0] bg_rom_data
+    input  wire [31:0] bg_rom_data,
+
+    // MXC06 original sprite ROMs (ed04, ed05, ed06, ed07).
+    output wire        obj_rom_cs,
+    output wire [16:0] obj_rom_addr,
+    input  wire [31:0] obj_rom_data
 );
+
+    wire sprite_copy;
 
     jtoscar_main u_main (
         .clk             ( clk             ),
@@ -89,6 +96,7 @@ module jtoscar_game (
         .bg_we           ( bg_we           ),
         .bac_reg_wr      ( bac_reg_wr      ),
         .sprite_we       ( sprite_we       ),
+        .sprite_copy     ( sprite_copy     ),
         .palette_hi_we   ( palette_hi_we   ),
         .palette_lo_we   ( palette_lo_we   ),
 
@@ -129,6 +137,13 @@ module jtoscar_game (
         .bg_rom_cs    ( bg_rom_cs     ),
         .bg_rom_addr  ( bg_rom_addr   ),
         .bg_rom_data  ( bg_rom_data   ),
+        .obj_cpu_addr  ( cpu_addr      ),
+        .obj_cpu_dout  ( cpu_dout      ),
+        .obj_cpu_wr    ( sprite_we     ),
+        .obj_copy      ( sprite_copy   ),
+        .obj_rom_cs    ( obj_rom_cs    ),
+        .obj_rom_addr  ( obj_rom_addr  ),
+        .obj_rom_data  ( obj_rom_data  ),
         .cram_addr    ( cram_addr    ),
         .cram_data    ( cram_data    ),
         .palette_addr ( palette_addr ),

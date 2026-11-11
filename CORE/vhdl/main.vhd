@@ -145,6 +145,13 @@ architecture synthesis of main is
    signal bg_rom_we            : std_logic_vector(3 downto 0);
    type t_bg_planes is array (0 to 3) of std_logic_vector(7 downto 0);
    signal bg_rom_q             : t_bg_planes;
+   signal obj_rom_cs           : std_logic;
+   signal obj_rom_addr         : std_logic_vector(16 downto 0);
+   signal obj_rom_data         : std_logic_vector(31 downto 0);
+   signal obj_rom_upper_d      : std_logic := '0';
+   signal obj_rom_we           : std_logic_vector(3 downto 0);
+   type t_obj_planes is array (0 to 3) of std_logic_vector(7 downto 0);
+   signal obj_rom_q            : t_obj_planes;
    signal sprite_q             : std_logic_vector(7 downto 0);
    signal palette_hi_q         : std_logic_vector(7 downto 0);
    signal palette_lo_q         : std_logic_vector(7 downto 0);
@@ -259,7 +266,10 @@ architecture synthesis of main is
          bg_ram_data           : in  std_logic_vector(15 downto 0);
          bg_rom_cs             : out std_logic;
          bg_rom_addr           : out std_logic_vector(16 downto 0);
-         bg_rom_data           : in  std_logic_vector(31 downto 0)
+         bg_rom_data           : in  std_logic_vector(31 downto 0);
+         obj_rom_cs            : out std_logic;
+         obj_rom_addr          : out std_logic_vector(16 downto 0);
+         obj_rom_data          : in  std_logic_vector(31 downto 0)
       );
    end component;
 
@@ -276,6 +286,11 @@ begin
    bg_rom_we(1) <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_BG1_ROM else '0';
    bg_rom_we(2) <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_BG2_ROM else '0';
    bg_rom_we(3) <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_BG3_ROM else '0';
+   
+   obj_rom_we(0) <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_OBJ0_ROM else '0';
+   obj_rom_we(1) <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_OBJ1_ROM else '0';
+   obj_rom_we(2) <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_OBJ2_ROM else '0';
+   obj_rom_we(3) <= dn_wr_i when dn_dev_i = C_DEV_OSCAR_OBJ3_ROM else '0';
 
    ----------------------------------------------------------------------------------
    -- Keyboard
@@ -583,7 +598,44 @@ begin
    bg_rom_data <= bg_rom_q(2) & bg_rom_q(3) & bg_rom_q(0) & bg_rom_q(1)
       when bg_rom_upper_d = '0' else (others => '0');
 
-   -- The sprite RAM remains CPU-visible but is not rendered yet.
+   -- Four original 64 KiB MXC06 sprite graphics ROMs (ed04..ed07).
+   -- The unused upper 64 KiB of each MAME 128 KiB plane is read as zero.
+   -- ROMs remain individual QNICE-loaded BRAM banks in main.vhd.
+   gen_oscar_obj_rom : for i in 0 to 3 generate
+   begin
+      i_obj_rom : dualport_2clk_ram
+         generic map (
+            FALLING_B            => true,
+            ADDR_WIDTH           => 16
+         )
+         port map (
+            clock_a              => clk_main_i,
+            address_a            => obj_rom_addr(15 downto 0),
+            q_a                  => obj_rom_q(i),
+
+            clock_b              => dn_clk_i,
+            address_b            => dn_addr_i,
+            data_b               => dn_data_i,
+            wren_b               => obj_rom_we(i)
+         );
+   end generate gen_oscar_obj_rom;
+
+   -- Align the unpopulated address range with the synchronous ROM output.
+   process(clk_main_i)
+   begin
+      if rising_edge(clk_main_i) then
+         obj_rom_upper_d <= obj_rom_addr(16);
+      end if;
+   end process;
+
+   -- Jotego's object renderer selects pen bits 3..0 from bits 15,31,7,23.
+   -- Original MAME planes: ed07=bit3, ed06=bit2, ed05=bit1, ed04=bit0.
+   obj_rom_data <= obj_rom_q(2) & obj_rom_q(0) &
+                   obj_rom_q(3) & obj_rom_q(1)
+      when obj_rom_upper_d = '0' else (others => '0');
+
+   -- Preserve the working CPU-visible sprite RAM at $3000-$37FF.
+   -- CPU writes are also mirrored into the MXC06's internal sprite RAM.
 
    i_sprite_ram : jtframe_dual_ram
       generic map (
@@ -703,7 +755,10 @@ begin
          bg_ram_data          => bg_ram_data,
          bg_rom_cs            => bg_rom_cs,
          bg_rom_addr          => bg_rom_addr,
-         bg_rom_data          => bg_rom_data
+         bg_rom_data          => bg_rom_data,
+         obj_rom_cs           => obj_rom_cs,
+         obj_rom_addr         => obj_rom_addr,
+         obj_rom_data         => obj_rom_data
       );
 
    ----------------------------------------------------------------------------------

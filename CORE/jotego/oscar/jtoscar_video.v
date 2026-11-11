@@ -36,6 +36,17 @@ module jtoscar_video (
     output wire [16:0] bg_rom_addr,
     input  wire [31:0] bg_rom_data,
 
+    // Original Oscar MXC06 sprite RAM CPU writes / DMA trigger.
+    input  wire [15:0] obj_cpu_addr,
+    input  wire [7:0]  obj_cpu_dout,
+    input  wire        obj_cpu_wr,
+    input  wire        obj_copy,
+
+    // Sprite graphics ROMs (four 64 KiB planes in main.vhd).
+    output wire        obj_rom_cs,
+    output wire [16:0] obj_rom_addr,
+    input  wire [31:0] obj_rom_data,
+
     // Character tilemap RAM from main.vhd (16-bit words, 1-cycle read)
     output wire [9:0]  cram_addr,
     input  wire [15:0] cram_data,
@@ -75,6 +86,9 @@ module jtoscar_video (
     wire [8:0] hdump;
     wire [8:0] vdump;
     wire [8:0] vrender;
+    wire [8:0] vrender1;
+    wire       hinit;
+    wire       vload = vrender1 == 9'd7;
 
     jtframe_vtimer #(
         .VB_START ( 9'd248 ),
@@ -91,9 +105,9 @@ module jtoscar_video (
         .pxl_cen  ( pxl_cen ),
         .vdump    ( vdump   ),
         .vrender  ( vrender ),
-        .vrender1 (         ),
+        .vrender1 ( vrender1),
         .H        ( hdump   ),
-        .Hinit    (         ),
+        .Hinit    ( hinit   ),
         .Vinit    (         ),
         .LHBL     ( LHBL    ),
         .LVBL     ( LVBL    ),
@@ -170,13 +184,52 @@ module jtoscar_video (
         .bg_pxl    ( bg_pxl       )
     );
 
-    // Foreground characters over the BAC06 background.
+    // Jotego MXC06 sprite engine. It contains the board's DMA copy RAM and
+    // line buffer. CPU-facing sprite RAM remains in main.vhd for reads.
+    // Original 6809 byte writes are mirrored into the MXC06 input RAM.
+    wire [7:0] obj_pxl;
+    wire [1:0] obj_cpu_dsn = !obj_cpu_wr ? 2'b11 :
+                              obj_cpu_addr[0] ? 2'b10 : 2'b01;
+
+    jtcop_obj u_obj (
+        .rst        ( rst                         ),
+        .clk        ( clk                         ),
+        .clk_cpu    ( clk                         ),
+        .pxl_cen    ( pxl_cen                     ),
+        .HS         ( HS                          ),
+        .LHBL       ( LHBL                        ),
+        .LVBL       ( LVBL                        ),
+        .flip       ( 1'b0                        ),
+        .hinit      ( hinit                       ),
+        .vload      ( vload                       ),
+        .hdump      ( hdump                       ),
+        .vrender    ( vrender                     ),
+        .ioctl_ram  ( 1'b0                        ),
+        .ioctl_addr ( 11'd0                       ),
+        .ioctl_din  (                             ),
+        .cpu_addr   ( obj_cpu_addr[10:1]          ),
+        .cpu_dout   ( {2{obj_cpu_dout}}           ),
+        .obj_dout   (                             ),
+        .cpu_dsn    ( obj_cpu_dsn                 ),
+        .cpu_rnw    ( ~obj_cpu_wr                 ),
+        .objram_cs  ( 1'b1                        ),
+        .obj_copy   ( obj_copy                    ),
+        .mixpsel    ( 1'b0                        ),
+        .rom_cs     ( obj_rom_cs                  ),
+        .rom_addr   ( obj_rom_addr                ),
+        .rom_data   ( obj_rom_data                ),
+        .rom_ok     ( 1'b1                        ),
+        .pxl        ( obj_pxl                     )
+    );
+
+    // Foreground characters over sprites over the BAC06 background.
     jtoscar_colmix u_colmix (
         .clk          ( clk          ),
         .LHBL         ( LHBL         ),
         .LVBL         ( LVBL         ),
         .char_pxl     ( char_pxl     ),
         .bg_pxl       ( bg_pxl       ),
+        .obj_pxl      ( obj_pxl      ),
         .palette_addr ( palette_addr ),
         .palette_data ( palette_data ),
         .red          ( red          ),
