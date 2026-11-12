@@ -57,7 +57,9 @@ module jtoscar_video (
 
     output wire [7:0]  red,
     output wire [7:0]  green,
-    output wire [7:0]  blue
+    output wire [7:0]  blue,
+    
+    input  wire        flip
 );
 
     // ------------------------------------------------------------
@@ -125,6 +127,7 @@ module jtoscar_video (
     wire [5:0] char_pxl;
 
     assign cram_addr = char_vram_addr;
+    
 
     jtframe_tilemap #(
         .SIZE         ( 8   ),
@@ -134,7 +137,8 @@ module jtoscar_video (
         .BPP          ( 3   ),
         .MAP_HW       ( 8   ),
         .MAP_VW       ( 8   ),
-        .HDUMP_OFFSET ( 0   )
+        .HDUMP_OFFSET ( 0   ),
+        .XOR_HFLIP    ( 1   )
     ) u_char (
         .rst         ( rst            ),
         .clk         ( clk            ),
@@ -142,7 +146,7 @@ module jtoscar_video (
         .vdump       ( vchar          ),
         .hdump       ( hdump          ),
         .blankn      ( LVBL           ),
-        .flip        ( 1'b0           ),
+        .flip        ( flip           ),
         .vram_addr   ( char_vram_addr ),
         .code        ( {cram_data[9:8], cram_data[7:0]} ),
         .pal         ( {1'b0, cram_data[15:14]} ),
@@ -181,7 +185,8 @@ module jtoscar_video (
         .rom_addr  ( bg_rom_addr  ),
         .rom_data  ( bg_rom_data  ),
         .rom_ok    ( 1'b1         ),
-        .bg_pxl    ( bg_pxl       )
+        .bg_pxl    ( bg_pxl       ),
+        .flip      ( flip         )
     );
 
     // Jotego MXC06 sprite engine. It contains the board's DMA copy RAM and
@@ -199,7 +204,7 @@ module jtoscar_video (
         .HS         ( HS                          ),
         .LHBL       ( LHBL                        ),
         .LVBL       ( LVBL                        ),
-        .flip       ( 1'b0                        ),
+        .flip         ( flip                      ),
         .hinit      ( hinit                       ),
         .vload      ( vload                       ),
         .hdump      ( hdump                       ),

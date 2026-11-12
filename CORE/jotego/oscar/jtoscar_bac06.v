@@ -42,7 +42,9 @@ module jtoscar_bac06 (
     input  wire        rom_ok,
 
     // Four palette bits and four pixel bits, for future colmix.
-    output wire [7:0]  bg_pxl
+    output wire [7:0]  bg_pxl,
+    
+    input  wire        flip
 );
 
     // Oscar $3c00-$3c07: BAC06 control registers (read addresses
@@ -84,7 +86,6 @@ module jtoscar_bac06 (
 
     // MASTER=0 does not drive the timer or flip nets. Oscar is upright
     // for this checkpoint, so drive flip explicitly rather than leave Z.
-    wire bac_flip = 1'b0;
     wire bac_vload;
     wire bac_hinit;
     wire [15:0] bac_cpu_din;
@@ -100,7 +101,7 @@ module jtoscar_bac06 (
         .pxl_cen   ( pxl_cen                    ),
 
         .mode_cs   ( bac_reg_wr                 ),
-        .flip      ( bac_flip                   ),
+        .flip      ( flip                       ),
         .cpu_dout  ( {cpu_dout, cpu_dout}       ),
         .cpu_din   ( bac_cpu_din                ),
         .cpu_addr  ( bac_cpu_addr               ),

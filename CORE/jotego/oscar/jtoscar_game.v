@@ -89,6 +89,7 @@ module jtoscar_game (
 
     wire sprite_copy;
     wire sound_wr;
+    wire video_flip = dip_sw1[6];
 
     jtoscar_main u_main (
         .clk             ( clk             ),
@@ -166,7 +167,8 @@ module jtoscar_game (
         .palette_data ( palette_data ),
         .red          ( red          ),
         .green        ( green        ),
-        .blue         ( blue         )
+        .blue         ( blue         ),
+        .flip         ( video_flip   )
     );
 
     // DECO 222 (T65) / YM2203 / YM3526. Video path is unchanged.
