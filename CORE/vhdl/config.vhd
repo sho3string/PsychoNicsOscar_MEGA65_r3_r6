@@ -564,7 +564,7 @@ constant OPTM_GROUPS : OPTM_GTYPE := (
                                OPTM_G_SW1_4 + OPTM_G_SINGLESEL,                     -- 63 SW1-5
                                OPTM_G_SW1_5 + OPTM_G_SINGLESEL,                     -- 64 SW1-6
                                OPTM_G_SW1_6 + OPTM_G_SINGLESEL,                     -- 65 SW1-7
-                               OPTM_G_SW1_7 + OPTM_G_SINGLESEL,                     -- 66 SW1-8
+                               OPTM_G_SW1_7 + OPTM_G_SINGLESEL+ OPTM_G_STDSEL,      -- 66 SW1-8
 
                                OPTM_G_LINE,                                         -- 67
                                OPTM_G_CLOSE + OPTM_G_SUBMENU,                       -- 68 Back to main menu

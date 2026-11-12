@@ -30,6 +30,7 @@ entity main is
       -- Oscar DIP banks: selected OSD item = physical switch ON.
       dip_sw1_i               : in  std_logic_vector(7 downto 0);
       dip_sw2_i               : in  std_logic_vector(7 downto 0);
+      osm_control_i           : in  std_logic_vector(255 downto 0);
 
       -- QNICE ROM download bus: ed08, du10, ed09, du11 (each its own device).
       dn_clk_i                : in  std_logic;
@@ -81,6 +82,29 @@ architecture synthesis of main is
 
    -- Keyboard
    signal keyboard_n          : std_logic_vector(79 downto 0);
+
+   -- Oscar player inputs, original arcade IN0 / IN1 / IN2.
+   signal oscar_in0           : std_logic_vector(7 downto 0);
+   signal oscar_in1           : std_logic_vector(7 downto 0);
+   signal oscar_coin_inputs   : std_logic_vector(2 downto 0);
+   signal p1_buttons         : std_logic_vector(2 downto 0);
+   signal p2_buttons         : std_logic_vector(2 downto 0);
+   signal p1_mapped          : std_logic_vector(2 downto 0);
+   signal p2_mapped          : std_logic_vector(2 downto 0);
+
+   -- Same M2M keyboard indices used by Double Dragon.
+   constant m65_1            : integer := 56;
+   constant m65_2            : integer := 59;
+   constant m65_5            : integer := 16;
+   constant m65_6            : integer := 19;
+   constant m65_9            : integer := 32;
+   constant m65_up_crsr      : integer := 73;
+   constant m65_vert_crsr    : integer := 7;
+   constant m65_left_crsr    : integer := 74;
+   constant m65_horz_crsr    : integer := 2;
+   constant m65_z            : integer := 12;
+   constant m65_x            : integer := 23;
+   constant m65_c            : integer := 20;
 
    -- Oscar video
    signal pixel_ce            : std_logic;
@@ -232,6 +256,9 @@ architecture synthesis of main is
          rst                   : in  std_logic;
          dip_sw1               : in  std_logic_vector(7 downto 0);
          dip_sw2               : in  std_logic_vector(7 downto 0);
+         in0                   : in  std_logic_vector(7 downto 0);
+         in1                   : in  std_logic_vector(7 downto 0);
+         coin_inputs           : in  std_logic_vector(2 downto 0);
          pxl_cen               : out std_logic;
          HS                    : out std_logic;
          VS                    : out std_logic;
@@ -329,6 +356,95 @@ begin
          key_pressed_n_i      => kb_key_pressed_n_i,
          example_n_o          => keyboard_n
       );
+
+   ----------------------------------------------------------------------------------
+   -- Oscar player controls (active low): Fire / POTX / POTY, both players.
+   -- POT polarity and button layout are shared, as in the Double Dragon port.
+   ----------------------------------------------------------------------------------
+
+   p1_buttons(0) <= joy_1_fire_n_i;
+   p1_buttons(1) <= '0' when pot1_x_i(7) = osm_control_i(C_MENU_POTPOL_0) else '1';
+   p1_buttons(2) <= '0' when pot1_y_i(7) = osm_control_i(C_MENU_POTPOL_0) else '1';
+
+   p2_buttons(0) <= joy_2_fire_n_i;
+   p2_buttons(1) <= '0' when pot2_x_i(7) = osm_control_i(C_MENU_POTPOL_0) else '1';
+   p2_buttons(2) <= '0' when pot2_y_i(7) = osm_control_i(C_MENU_POTPOL_0) else '1';
+
+   -- OSD layout labels specify the physical order Fire / POTX / POTY.
+   -- Logical output bits: 0=Shoot, 1=Jump, 2=Select.
+   process(all)
+   begin
+      p1_mapped <= p1_buttons;
+      p2_mapped <= p2_buttons;
+
+      if osm_control_i(C_MENU_P1LAY_0) = '1' then
+         -- Select / Jump / Shoot
+         p1_mapped <= p1_buttons(0) & p1_buttons(1) & p1_buttons(2);
+         p2_mapped <= p2_buttons(0) & p2_buttons(1) & p2_buttons(2);
+      elsif osm_control_i(C_MENU_P1LAY_1) = '1' then
+         -- Select / Shoot / Jump
+         p1_mapped <= p1_buttons(0) & p1_buttons(2) & p1_buttons(1);
+         p2_mapped <= p2_buttons(0) & p2_buttons(2) & p2_buttons(1);
+      elsif osm_control_i(C_MENU_P1LAY_2) = '1' then
+         -- Jump / Select / Shoot
+         p1_mapped <= p1_buttons(1) & p1_buttons(0) & p1_buttons(2);
+         p2_mapped <= p2_buttons(1) & p2_buttons(0) & p2_buttons(2);
+      elsif osm_control_i(C_MENU_P1LAY_3) = '1' then
+         -- Shoot / Select / Jump
+         p1_mapped <= p1_buttons(1) & p1_buttons(2) & p1_buttons(0);
+         p2_mapped <= p2_buttons(1) & p2_buttons(2) & p2_buttons(0);
+      elsif osm_control_i(C_MENU_P1LAY_4) = '1' then
+         -- Jump / Shoot / Select
+         p1_mapped <= p1_buttons(2) & p1_buttons(0) & p1_buttons(1);
+         p2_mapped <= p2_buttons(2) & p2_buttons(0) & p2_buttons(1);
+      elsif osm_control_i(C_MENU_P1LAY_5) = '1' then
+         -- Shoot / Jump / Select (default)
+         p1_mapped <= p1_buttons(2) & p1_buttons(1) & p1_buttons(0);
+         p2_mapped <= p2_buttons(2) & p2_buttons(1) & p2_buttons(0);
+      end if;
+   end process;
+
+   -- MAME Oscar IN0/IN1 bit order: Up, Down, Left, Right, Shoot,
+   -- Jump, Select, Start. Keyboard mode applies to Player 1 only.
+   process(all)
+   begin
+      oscar_in0 <= (others => '1');
+
+      if osm_control_i(C_MENU_MODE_1) = '1' then
+         oscar_in0(0) <= keyboard_n(m65_up_crsr);
+         oscar_in0(1) <= keyboard_n(m65_vert_crsr);
+         oscar_in0(2) <= keyboard_n(m65_left_crsr);
+         oscar_in0(3) <= keyboard_n(m65_horz_crsr);
+         oscar_in0(4) <= keyboard_n(m65_z); -- Shoot
+         oscar_in0(5) <= keyboard_n(m65_x); -- Jump
+         oscar_in0(6) <= keyboard_n(m65_c); -- Select
+      else
+         oscar_in0(0) <= joy_1_up_n_i;
+         oscar_in0(1) <= joy_1_down_n_i;
+         oscar_in0(2) <= joy_1_left_n_i;
+         oscar_in0(3) <= joy_1_right_n_i;
+         oscar_in0(4) <= p1_mapped(0);
+         oscar_in0(5) <= p1_mapped(1);
+         oscar_in0(6) <= p1_mapped(2);
+      end if;
+
+      oscar_in0(7) <= keyboard_n(m65_1); -- Start 1
+   end process;
+
+   oscar_in1(0) <= joy_2_up_n_i;
+   oscar_in1(1) <= joy_2_down_n_i;
+   oscar_in1(2) <= joy_2_left_n_i;
+   oscar_in1(3) <= joy_2_right_n_i;
+   oscar_in1(4) <= p2_mapped(0);
+   oscar_in1(5) <= p2_mapped(1);
+   oscar_in1(6) <= p2_mapped(2);
+   oscar_in1(7) <= keyboard_n(m65_2); -- Start 2
+
+   -- IN2 bits 0..2: Coin A (5), Coin B (6), Service (9).
+   -- These also trigger the original Oscar main-CPU coin NMI.
+   oscar_coin_inputs(0) <= keyboard_n(m65_5);
+   oscar_coin_inputs(1) <= keyboard_n(m65_6);
+   oscar_coin_inputs(2) <= keyboard_n(m65_9);
 
    ----------------------------------------------------------------------------------
    -- Character ROM: four 4 KiB banks, exactly as stored in ed08.
@@ -772,6 +888,9 @@ begin
          rst                  => reset_hard_i or reset_soft_i,
          dip_sw1              => dip_sw1_i,
          dip_sw2              => dip_sw2_i,
+         in0                  => oscar_in0,
+         in1                  => oscar_in1,
+         coin_inputs          => oscar_coin_inputs,
          pxl_cen              => pixel_ce,
          HS                   => hs,
          VS                   => vs,

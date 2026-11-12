@@ -5,6 +5,9 @@ module jtoscar_game (
     input  wire        rst,
     input  wire [7:0]  dip_sw1,
     input  wire [7:0]  dip_sw2,
+    input  wire [7:0]  in0,
+    input  wire [7:0]  in1,
+    input  wire [2:0]  coin_inputs,
     output wire        pxl_cen,
     output wire        HS,
     output wire        VS,
@@ -87,9 +90,24 @@ module jtoscar_game (
     input  wire [7:0]  sound_ram_data
 );
 
+    
     wire sprite_copy;
     wire sound_wr;
-    wire video_flip = dip_sw1[6];
+
+
+    // Game-controlled BAC06 screen orientation.
+    reg game_flip = 1'b0;
+
+    always @(posedge clk) begin
+        if (rst)
+            game_flip <= 1'b0;
+        else if (bac_reg_wr &&
+                 (cpu_addr == 16'h3c00 || cpu_addr == 16'h3c01))
+            game_flip <= cpu_dout[7];
+    end
+
+    // Screen orientation controlled by the game through BAC06.
+    wire video_flip = game_flip;
 
     jtoscar_main u_main (
         .clk             ( clk             ),
@@ -97,6 +115,9 @@ module jtoscar_game (
         .LVBL            ( LVBL            ),
         .dip_sw1         ( dip_sw1         ),
         .dip_sw2         ( dip_sw2         ),
+        .in0             ( in0             ),
+        .in1             ( in1             ),
+        .coin_inputs     ( coin_inputs     ),
         .cpu_addr        ( cpu_addr        ),
         .sub_addr        ( sub_addr        ),
         .cpu_dout        ( cpu_dout        ),
@@ -134,6 +155,7 @@ module jtoscar_game (
 
     // Existing character renderer with live palette-RAM colour lookup.
     jtoscar_video u_video (
+        .flip         ( video_flip   ),
         .clk          ( clk          ),
         .rst          ( rst          ),
         .pxl_cen      ( pxl_cen      ),
@@ -167,8 +189,7 @@ module jtoscar_game (
         .palette_data ( palette_data ),
         .red          ( red          ),
         .green        ( green        ),
-        .blue         ( blue         ),
-        .flip         ( video_flip   )
+        .blue         ( blue         )
     );
 
     // DECO 222 (T65) / YM2203 / YM3526. Video path is unchanged.

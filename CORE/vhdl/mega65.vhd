@@ -224,11 +224,11 @@ architecture synthesis of MEGA65_Core is
 -- Clocks and active high reset signals for each clock domain
 ---------------------------------------------------------------------------------------------
 
-signal main_clk             : std_logic;               -- Core main clock
-signal main_rst             : std_logic;
+signal main_clk               : std_logic;               -- Core main clock
+signal main_rst               : std_logic;
 
 -- QNICE write strobe for the Oscar character ROM. Actual BRAM is in main.vhd.
-signal oscar_rom_qnice_we   : std_logic;
+signal oscar_rom_qnice_we    : std_logic;
 signal dip_sw1_menu         : std_logic_vector(7 downto 0);
 signal dip_sw2_menu         : std_logic_vector(7 downto 0);
 
@@ -243,18 +243,6 @@ signal dip_sw2_menu         : std_logic_vector(7 downto 0);
 ---------------------------------------------------------------------------------------------
 -- Democore & example stuff: Delete before starting to port your own core
 ---------------------------------------------------------------------------------------------
-
--- Democore menu items
-constant C_MENU_HDMI_16_9_50   : natural := 12;
-constant C_MENU_HDMI_16_9_60   : natural := 13;
-constant C_MENU_HDMI_4_3_50    : natural := 14;
-constant C_MENU_HDMI_5_4_50    : natural := 15;
-constant C_MENU_HDMI_640_60    : natural := 16;
-constant C_MENU_HDMI_720_5994  : natural := 17;
-constant C_MENU_SVGA_800_60    : natural := 18;
-constant C_MENU_CRT_EMULATION  : natural := 30;
-constant C_MENU_HDMI_ZOOM      : natural := 31;
-constant C_MENU_IMPROVE_AUDIO  : natural := 32;
 
 -- QNICE clock domain
 signal qnice_demo_vd_data_o   : std_logic_vector(15 downto 0);
@@ -396,6 +384,7 @@ begin
 
          dip_sw1_i            => dip_sw1_menu,
          dip_sw2_i            => dip_sw2_menu,
+         osm_control_i        => main_osm_control_i,
 
          -- Pass the selected QNICE ROM download device into main.vhd.
          -- All character ROM BRAM and plane assembly live there.
@@ -469,8 +458,7 @@ begin
    qnice_scandoubler_o        <= '0';                                         -- no scandoubler
    qnice_audio_mute_o         <= '0';                                         -- audio is not muted
    qnice_audio_filter_o       <= qnice_osm_control_i(C_MENU_IMPROVE_AUDIO);   -- 0 = raw audio, 1 = use filters from globals.vhd
-   qnice_zoom_crop_o          <= qnice_osm_control_i(C_MENU_HDMI_ZOOM);       -- 0 = no zoom/crop
-   
+  
    -- These two signals are often used as a pair (i.e. both '1'), particularly when
    -- you want to run old analog cathode ray tube monitors or TVs (via SCART)
    -- If you want to provide your users a choice, then a good choice is:

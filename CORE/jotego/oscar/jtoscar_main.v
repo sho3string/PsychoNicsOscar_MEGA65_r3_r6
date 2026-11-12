@@ -7,6 +7,9 @@ module jtoscar_main (
     input  wire        LVBL,
     input  wire [7:0]  dip_sw1,
     input  wire [7:0]  dip_sw2,
+    input  wire [7:0]  in0,
+    input  wire [7:0]  in1,
+    input  wire [2:0]  coin_inputs,
 
     // CPU buses to external ROM/RAM in main.vhd.
     output wire [15:0] cpu_addr,
@@ -77,6 +80,12 @@ module jtoscar_main (
     reg       main_irq = 1'b0;
     reg       sub_irq  = 1'b0;
 
+    // Coin A, Coin B and Service share a main-CPU NMI input.
+    // Assert only on a new active-low input, clear at $3E00.
+    wire coin_active = ~&coin_inputs;
+    reg  coin_active_d = 1'b0;
+    reg  coin_nmi = 1'b0;
+
     // Four 16 KiB banks from the existing 64 KiB ed09 image.
     assign bank_rom_addr = {bank_reg[1:0], cpu_addr[13:0]};
 
@@ -103,7 +112,7 @@ module jtoscar_main (
         .cpu_cen  ( main_cpu_cen  ),
         .nIRQ     ( ~main_irq     ),
         .nFIRQ    ( 1'b1          ),
-        .nNMI     ( 1'b1          ),
+        .nNMI     ( ~coin_nmi     ),
         .irq_ack  (               ),
         .bus_busy ( 1'b0          ),
         .A        ( cpu_addr      ),
@@ -152,7 +161,16 @@ module jtoscar_main (
             bank_reg <= 4'd0;
             main_irq <= 1'b0;
             sub_irq  <= 1'b0;
+            coin_active_d <= 1'b0;
+            coin_nmi      <= 1'b0;
         end else begin
+            coin_active_d <= coin_active;
+
+            if (cpu_wr && cpu_addr == 16'h3e00)
+                coin_nmi <= 1'b0;
+
+            if (coin_active && !coin_active_d)
+                coin_nmi <= 1'b1;
             if (cpu_wr) begin
                 if (cpu_addr == 16'h3d00)
                     bank_reg <= cpu_dout[3:0];
@@ -233,8 +251,11 @@ module jtoscar_main (
 
             default: begin
                 case (cpu_addr)
-                    // Oscar IN2: VBLANK is active high on bit 7.
-                    16'h3c02: main_data = LVBL ? 8'h7f : 8'hff;
+                    // Oscar IN0/IN1: P1/P2 controls, including Start on bit 7.
+                    16'h3c00: main_data = in0;
+                    16'h3c01: main_data = in1;
+                    // IN2: bit 7 VBLANK active high, bits 2..0 coin/service low.
+                    16'h3c02: main_data = {~LVBL, 4'b1111, coin_inputs};
                     // DIP SW1/SW2, active low, as read on original hardware.
                     16'h3c03: main_data = dsw0;
                     16'h3c04: main_data = dsw1;
