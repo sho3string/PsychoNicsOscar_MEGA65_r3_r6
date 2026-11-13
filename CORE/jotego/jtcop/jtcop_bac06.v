@@ -33,7 +33,9 @@
 
 module jtcop_bac06 #(
     parameter MASTER=0,     // One BAC06 chip will be the timing master
-              SIMFILE="ba0.bin"
+              SIMFILE="ba0.bin",
+    parameter [9:0] HSCROLL_OFFSET = 10'd0,
+                    VSCROLL_OFFSET = 10'd0
 ) (
     input             rst,
     input             clk,        // 12MHz original
@@ -109,7 +111,8 @@ assign msbrow_en = mode[0][1];
 assign rowscr_en = mode[0][2];
 assign colscr_en = mode[0][3];
 assign geometry  = mode[3][1:0];
-assign veff0     = {1'd0, flip ? 9'd256-vrender : vrender } + vscr[9:0];
+assign veff0     = {1'd0, flip ? 9'd256-vrender : vrender } + vscr[9:0]
+                 + (flip ? -VSCROLL_OFFSET : VSCROLL_OFFSET);
 
 `ifdef SIMULATION
     wire [7:0] mode0 = mode[0];
@@ -335,7 +338,7 @@ always @(posedge clk, posedge rst) begin
         HSl <= HS;
         draw <= 0;
         if( HSl && !HS ) begin
-            hn       <= hscr[9:0];
+            hn       <= hscr[9:0] + HSCROLL_OFFSET;
             tilecnt  <= 0;
             ram_good <= 0;
             pre_cs   <= 1;

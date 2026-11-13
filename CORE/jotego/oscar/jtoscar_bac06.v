@@ -9,7 +9,10 @@
 // This is an interface-stage module. Connect its external RAM/ROM ports
 // to the MEGA65 BRAM instances before enabling background pixels in colmix.
 
-module jtoscar_bac06 (
+module jtoscar_bac06 #(
+    parameter [9:0] HOFF = 10'd0,   // + moves background LEFT,  - moves it RIGHT
+    parameter [9:0] VOFF = 10'd0    // + moves background UP,    - moves it DOWN
+) (
     input  wire        clk,
     input  wire        rst,
     input  wire        pxl_cen,
@@ -92,7 +95,9 @@ module jtoscar_bac06 (
     wire [7:0]  bac_status;
 
     jtcop_bac06 #(
-        .MASTER ( 0 )
+        .MASTER ( 0 ),
+        .HSCROLL_OFFSET ( HOFF ),
+        .VSCROLL_OFFSET ( VOFF )
     ) u_bac06 (
         .rst       ( rst                        ),
         .clk       ( clk                        ),

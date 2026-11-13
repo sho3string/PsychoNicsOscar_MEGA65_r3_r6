@@ -62,6 +62,16 @@ module jtoscar_video (
     input  wire        flip
 );
 
+    // ============================================================
+    // LAYER ALIGNMENT  - the ONLY place to tune.
+    // ============================================================
+    localparam signed [8:0] CHAR_HOFF = -9'sd8;
+    localparam        [8:0] CHAR_Y    =  9'd2;
+    localparam signed [9:0] BG_X      = -10'sd1;
+    localparam signed [9:0] BG_Y      = -10'sd2;
+    localparam        [8:0] SPR_X     = -9'sd1;   // 9-bit two's complement
+    localparam        [8:0] SPR_Y     = -9'sd2;
+
     // ------------------------------------------------------------
     // Pixel enable: unchanged (48 MHz / 8 = 6 MHz)
     // ------------------------------------------------------------
@@ -122,7 +132,7 @@ module jtoscar_video (
     // Oscar's character RAM contains [attribute, code] byte pairs.
     // Keep the existing video timing and diagnostic H/V offsets.
     // ------------------------------------------------------------
-    wire [8:0] vchar = vdump - 9'd2;
+    wire [8:0] vchar = vdump - CHAR_Y;
     wire [9:0] char_vram_addr;
     wire [5:0] char_pxl;
 
@@ -137,7 +147,7 @@ module jtoscar_video (
         .BPP          ( 3   ),
         .MAP_HW       ( 8   ),
         .MAP_VW       ( 8   ),
-        .HDUMP_OFFSET ( 0   ),
+        .HDUMP_OFFSET ( CHAR_HOFF ),
         .XOR_HFLIP    ( 1   )
     ) u_char (
         .rst         ( rst            ),
@@ -162,7 +172,7 @@ module jtoscar_video (
     // The original video timer drives BAC06 in slave mode; no second timer.
     wire [7:0] bg_pxl;
 
-    jtoscar_bac06 u_bac06 (
+    jtoscar_bac06 #(.HOFF(BG_X), .VOFF(BG_Y)) u_bac06 (
         .clk       ( clk          ),
         .rst       ( rst          ),
         .pxl_cen   ( pxl_cen      ),
@@ -207,8 +217,8 @@ module jtoscar_video (
         .flip         ( flip                      ),
         .hinit      ( hinit                       ),
         .vload      ( vload                       ),
-        .hdump      ( hdump                       ),
-        .vrender    ( vrender                     ),
+        .hdump      ( hdump + SPR_X               ),
+        .vrender    ( vrender + SPR_Y             ),
         .ioctl_ram  ( 1'b0                        ),
         .ioctl_addr ( 11'd0                       ),
         .ioctl_din  (                             ),
