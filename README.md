@@ -1,64 +1,131 @@
-MiSTer2MEGA65
-=============
+# Psycho-Nics Oscar — for MEGA65
 
-MiSTer2MEGA65 is a framework to simplify porting MiSTer cores to the MEGA65.
+**Psycho-Nics Oscar** is Data East's arcade action-platform game, featuring two-player support, eight-way movement and three action buttons.
 
-![Title Image](doc/wiki/assets/MiSTer2MEGA65-Title.png)
+This project is an **original FPGA implementation of Psycho-Nics Oscar for the MEGA65**. It uses reusable components from **Jotego's JTFRAME/JTCORES framework** and also uses **T65 6502 CPU core originally developed by Daniel Wallner,with contributions from Mike Johnson, Wolfgang Scherr and Morten Leikvoll.**.
 
-Learn more by
-[watching this YouTube video](https://youtu.be/9Ib7z64z9N4)
-and get started by reading the
-[MiSTer2MEGA65 Wiki](https://github.com/sy2002/MiSTer2MEGA65/wiki).
+The core uses [MiSTer2MEGA65](https://github.com/sy2002/MiSTer2MEGA65) and [QNICE-FPGA](https://github.com/sy2002/QNICE-FPGA) for MEGA65 integration, SD-card ROM loading, configuration and the on-screen menu.
 
-TL;DR
------
+## Credits
 
-1. Scroll up and press the "Use this template" button to start a new
-   MiSTer2MEGA65 project. Then fork the MiSTer core you want to port
-   and make it a Git submodule of your newly created project.
+- **Jotego and JTCORES contributors** — JTFRAME infrastructure and reusable FPGA components used by this project;
+- **sy2002, MJoergen and the MiSTer2MEGA65 contributors** — MEGA65 framework and related integration.
+- **Data East Corporation** — original Psycho-Nics Oscar arcade game.
+- **T65 6502 Core - Daniel Wallner, Mike Johnson, Wolfgang Scherr and Morten Leikvoll**
 
-2. Wrap the MiSTer core inside `CORE/vhdl/main.vhd` while
-   adjusting the clocks in `CORE/vhdl/clk.vhd`. Provide RAMs, ROMs and other
-   devices in `CORE/vhdl/mega65.vhd` and wire everything correctly.
+This is an unofficial, independently developed FPGA implementation, not an official Data East release.
 
-3. Configure your core's behavior, including how the start screen looks like,
-   what ROMs should be loaded (and where to), the abilities of the
-   <kbd>Help</kbd> menu and more in `CORE/vhdl/config.vhd` and in
-   `CORE/vhdl/globals.vhd`.
+## How to install the core
 
-**DONE** your core is ported to MEGA65! :-)
+### 1. Obtain the original MAME ROMs
 
-*Obviously, this is a shameless exaggeration of how easy it is to work with
-MiSTer2MEGA65, but you get the gist of it.*
+Supply your own compatible **World (`oscar`)** MAME ROM set. **ROMs are not included in this repository.**
 
-Getting started, detailed documentation and support
----------------------------------------------------
+Unlike cores that require converted or merged ROM images, **Oscar does not need a ROM-generation script**. Extract the individual ROM files from `oscar.zip`, retaining their original filenames, into this directory on your MEGA65 SD card:
 
-1. You might want to start your journey
-  [here](https://github.com/sy2002/MiSTer2MEGA65/wiki/1.-What-is-MiSTer2MEGA65)
-  and then follow the reading track that is pointed out in the
-  respective chapters.
+```text
+/arcade/oscar/
+```
 
-2. Run through this tutorial: https://files.mega65.org?ar=898d573b-d30d-4438-8893-09455bd16400
+The following original chip files are required:
 
-3. Choose the MiSTer core you want to port here: https://mister-devel.github.io/MkDocs_MiSTer/
+| Region | ROM files |
+|---|---|
+| Main CPU | `du10`, `ed09` |
+| Sub CPU | `du11` |
+| Sound CPU | `ed12` |
+| Characters | `ed08` |
+| Sprites | `ed04`, `ed05`, `ed06`, `ed07` |
+| Background tiles | `ed00`, `ed01`, `ed02`, `ed03` |
 
-4. Use [The Ultimate MiSTer2MEGA65 Porting Guide](https://github.com/sy2002/MiSTer2MEGA65/wiki/The-Ultimate-MiSTer2MEGA65-Porting-Guide) to do the actual work. The guide contains all steps "From Zero to Hero".
+Your SD-card directory should look like this:
 
-Status of the framework
------------------------
+```text
+/arcade/oscar/
+    du10
+    ed09
+    du11
+    ed12
+    ed08
+    ed04
+    ed05
+    ed06
+    ed07
+    ed00
+    ed01
+    ed02
+    ed03
+```
 
-**The MiSTer2MEGA (M2M) framework is stable and ready for being used.**
-The reference implementation of the M2M framework is the
-[Commodore 64 for MEGA65](https://github.com/MJoergen/C64MEGA65).
-Additionally there is already a decent amount of cores that are based on the M2M framework.
-Head to the [Alternate MEGA65 cores](https://cores.mega65.org) website to learn more.
+Do **not** combine, interleave, rename or convert these files. The FPGA core handles the required ROM layout internally.
 
-[The Ultimate MiSTer2MEGA65 Porting Guide](https://github.com/sy2002/MiSTer2MEGA65/wiki/The-Ultimate-MiSTer2MEGA65-Porting-Guide)
-is very comprehensive - if you miss something or have questions, contact us on Discord.
+### 2. Install the MEGA65 core
 
-The [Commodore 64 for MEGA65](https://github.com/MJoergen/C64MEGA65) is the reference implementation
-of the M2M framework and [The Ultimate MiSTer2MEGA65 Porting Guide](https://github.com/sy2002/MiSTer2MEGA65/wiki/The-Ultimate-MiSTer2MEGA65-Porting-Guide) uses it heavily to provide you with examples. Don't hesitate to take code snippets from the
-[Commodore 64 for MEGA65](https://github.com/MJoergen/C64MEGA65) for your own projects.
-nd join the
-[friendly MEGA65 community on Discord](https://discord.com/channels/719326990221574164/1177364456896999485).
+Install the Oscar `.cor` file using the standard MEGA65 core installation procedure. Use the version built for your MEGA65 hardware revision.
+
+### 3. Start the game
+
+Launch the core with the ROM files present in `/arcade/oscar/`. Press **HELP** to open the MiSTer2MEGA65 on-screen menu for controls, display options and the original arcade DIP switches.
+
+## Game setup
+
+### Controls
+
+Oscar uses an **eight-way joystick** and three action buttons:
+
+| Game action | MEGA65 joystick input | Keyboard (Player 1) |
+|---|---|---|
+| Move | Joystick directions | Cursor keys |
+| Attack / Shoot | Fire / configurable button mapping | `Z` |
+| Jump | POTX / configurable button mapping | `X` |
+| Power-Up / Select | POTY / configurable button mapping | `C` |
+| Player 1 start | — | `1` |
+| Player 2 start | — | `2` |
+| Coin 1 / Coin 2 | — | `5` / `6` |
+| Service | — | `9` |
+
+The control menu provides alternative assignments for **Fire, POTX and POTY**, plus POT polarity selection. Keyboard movement and action buttons apply to Player 1.
+
+### DIP switches
+
+The on-screen menu exposes Oscar's original two DIP-switch banks:
+
+| DSW0 | Function |
+|---|---|
+| Coin 1 | Coinage |
+| Coin 2 | Coinage |
+| Demo Freeze Mode | Off / On |
+| Attract Mode Sound | On / Off |
+| Flip Screen | Normal / Reverse |
+| Cabinet Type | Upright / Table (cocktail) |
+
+| DSW1 | Function |
+|---|---|
+| No. of Lives | Lives selection |
+| Difficulty | Normal / Easy / Hard / Hardest |
+| Extend | Extra-life thresholds |
+| No Death | Off / On |
+| Allow Continue | Yes / No |
+
+The game software controls screen orientation through the BAC06 video register. Some changes to **Flip Screen** and **Cabinet Type** may take effect during a game transition or after a reset, rather than immediately when toggled in the menu.
+
+### Video and audio
+
+The game uses a **horizontal** screen layout. The MEGA65 framework provides HDMI and analogue video configuration through the on-screen menu, including options for compatible 15 kHz CRT displays.
+
+Audio is generated using **YM2203** and **YM3526** sound synthesis.
+
+## Upstream projects and components
+
+- [JTCORES / JTFRAME — Jotego](https://github.com/jotego/jtcores) (reusable FPGA framework and components)
+- [MiSTer2MEGA65](https://github.com/sy2002/MiSTer2MEGA65)
+- [QNICE-FPGA](https://github.com/sy2002/QNICE-FPGA)
+- [T65 6502 core](https://github.com/MiSTer-devel/T65)
+
+These projects provide infrastructure or components. **The Psycho-Nics Oscar game core itself was written independently for this MEGA65 project.** Individual source files retain their respective copyright notices and licences; consult the repository's licence information.
+
+## Status and issue reports
+
+This README describes the **World (`oscar`)** ROM set. Other regional or revision sets are not documented as supported here.
+
+For problems with this MEGA65 implementation, report the MEGA65 revision, ROM set, observed behaviour and reproduction steps to this project's issue tracker. Please do not report MEGA65-specific problems to the upstream framework projects unless the issue is also reproducible in their components.
