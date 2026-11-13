@@ -1,64 +1,66 @@
-YOUR PROJECT NAME for MEGA65 aka GITHUB REPO SHORT NAME
-=======================================================
+Psycho-Nics Oscar for MEGA65
+============================
 
-done in YEAR by YOUR NAME
+Done in 2026 by Muse
+  * Muse       github.com/sho3string
 
-YOUR WEBSITE
-YOUR GITHUB SITE
+Special thanks to sy2002 and MJoergen for the M2M framework
+  * sy2002     github.com/sy2002     www.sy2002.de
+  * MJoergen   github.com/MJoergen
+  * Thanks to the MAME Team, particularly Bryan McPhail and
+    Stephane Humbert, for the Data East DECO 8 driver.
+    This Oscar implementation would not exist without their work
+    as an essential hardware and behaviour reference.
 
-REPO SHORT NAME is licensed under the terms of GNU/GPL v3, for more information please read the file LICENSE
-Parts of REPO SHORT NAME are licensed under other Free-software licenses as described in the source code
+Oscar_MEGA65_r3_r6 is licensed under the terms of GNU/GPL v3. For more information, please read the file LICENSE.
+Parts of Oscar_MEGA65_r3_r6 are licensed under other Free-software licenses, as described in their respective source files.
 
-GITHUB REPO SHORT NAME:
------------------------
+Oscar_MEGA65_r3_r6
+==================
 
-  GITHUB REPO SHORT NAME is a port of MISTER'S REPO SHORT NAME
-      done by the MiSTer Development Team
-      Original GitHub Repository: https://github.com/MiSTer-devel/MISTER-REPO-LINK
-      Significant contributors:
-      * NAME THE MAIN
-      * CONTRIBUTORS
-      * ON MiSTer's SIDE
+Oscar_MEGA65_r3_r6 is an original FPGA implementation of Data East's
+Psycho-Nics Oscar, developed for the MEGA65 by Muse.
 
-  MISTER'S REPO SHORT NAME is a port of MiST's MiST NAME/OTHER SOURCE IN CASE MiSTer ported it from MIST/OTHER SOURCE
-      done by the MiST Development Team
-      Original GitHub Repository: https://github.com/mist-devel/MIST-REPO-LINK OR OTHER SOURCE
-      Significant contributors:
-      * NAME THE MAIN
-      * CONTRIBUTORS
-      * ON MiST's SIDE (OR OTHER SOURCE)
+This is not a port of an existing Jotego Oscar core. The implementation
+uses reusable components from Jotego's JTFRAME/JTCORES framework,
+including video and arcade hardware building blocks.
 
-  LIST SOME MORE SIGNIFICANT / MAIN AUTHERS OF SUBMODULES
-  HAVE A LOOK AT THIS EXAMPLE HOW TO: https://github.com/sy2002/gbc4mega65/blob/master/AUTHORS
+  * JTFRAME / JTCORES by Jose Tejada (Jotego) and contributors
+    https://github.com/jotego/jtcores
 
-Other than that and my own work, REPO SHORT NAME uses:
-------------------------------------------------------
+Other than that and my own work, Oscar_MEGA65_r3_r6 uses:
+---------------------------------------------------------
 
-DO NOT FORGET TO CREDIT EVERYTHING YOU USE FROM OTHER PEOPLE HERE
-THE FOLLOWING LIST NEEDS ALWAYS TO BE PART OF YOUR LIST:
-  
+  * T65 65xx-compatible CPU core, originally developed by Daniel Wallner,
+    with contributions from Mike Johnson, Wolfgang Scherr and Morten Leikvoll.
+    The version used also contains subsequent fixes by other contributors.
+    https://opencores.org/projects/t65
+    https://github.com/mist-devel/T65
+
   * MiSTer2MEGA65 by The MiSTer2MEGA65 Development Team
     https://github.com/sy2002/MiSTer2MEGA65
 
-  * QNICE Co-Processor and System-on-a-Chip for file operations and on-screen-menu by The QNICE Development Team
+  * QNICE Co-Processor and System-on-a-Chip for file operations and
+    on-screen menu by The QNICE Development Team
     https://github.com/sy2002/QNICE-FPGA
 
-  * Various MEGA65 drivers taken from the MEGA65 VHDL source by Paul Gardner-Stephen
+  * Various MEGA65 drivers taken from the MEGA65 VHDL source by
+    Paul Gardner-Stephen and contributors
     https://github.com/MEGA65/mega65-core
 
-  * VGA Timing Generator, done by Scott Larson
+  * VGA Timing Generator by Scott Larson
     https://www.digikey.com/eewiki/pages/viewpage.action?pageId=15925278
 
-  * VGA to HDMI converter IP core, done by Adam Barnes
-    https://github.com/amb5l/tyto2
+  * VGA to HDMI converter IP core by Adam Barnes
+    https://github.com/amb5l/tyto_project
 
-  * AVALON SCALER used for scaling to 720p for HDMI, done by temlib.org
+  * AVALON SCALER used for scaling to 720p for HDMI by temlib.org
     http://temlib.org/site/?page_id=10
 
-  * HyperRAM controller, done by MJoergen
+  * HyperRAM controller by MJoergen
     https://mjoergen.github.io/HyperRAM/
 
-  * Debouncer: I/O debouncing used for the joysticks, done by Scott Larson
+  * Debouncer: I/O debouncing used for the joysticks by Scott Larson
     https://www.digikey.com/eewiki/pages/viewpage.action?pageId=4980758
 
   * Anikki-16x16 font, archived and provided by k80w
@@ -69,3 +71,7 @@ THE FOLLOWING LIST NEEDS ALWAYS TO BE PART OF YOUR LIST:
 
   * PSF font to C include file converter psftools-1.1.1 by John Elliott
     https://www.seasip.info/Unix/PSF/
+
+The T65 CPU core carries its own copyright and redistribution conditions.
+Retain the original copyright and licence notices in its source files,
+and comply with its licence when distributing source or synthesized builds.
